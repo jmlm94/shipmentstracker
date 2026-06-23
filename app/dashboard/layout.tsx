@@ -12,10 +12,26 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <Link href="/dashboard" className="font-semibold">
-            Shipments Tracker
-          </Link>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            <Link href="/dashboard" className="font-semibold">
+              Shipments Tracker
+            </Link>
+            <nav className="flex items-center gap-x-4 text-sm text-muted">
+              <Link href="/dashboard" className="hover:text-ink">
+                Shipments
+              </Link>
+              <Link href="/dashboard/receive" className="hover:text-ink">
+                Receive
+              </Link>
+              <Link href="/dashboard/products" className="hover:text-ink">
+                Products
+              </Link>
+              <a href="/api/export" className="hover:text-ink">
+                Export CSV
+              </a>
+            </nav>
+          </div>
           <form action="/api/auth/logout" method="POST">
             <button className="text-sm text-muted hover:text-ink">Sign out</button>
           </form>

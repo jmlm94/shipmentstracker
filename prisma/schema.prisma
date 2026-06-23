@@ -80,6 +80,27 @@ model StatusEvent {
   @@index([createdAt])
 }
 
+// Catalog of SKUs. Defining a product once lets the supplier form auto-fill
+// names and powers the printable QR box labels. Tier mirrors the SOP's
+// A / B / C warehouse zones.
+model Product {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  tier        Tier     @default(A)
+  unitsPerBox Int?     // typical units per box, used to pre-fill labels/forms
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sku])
+}
+
+enum Tier {
+  A
+  B
+  C
+}
+
 enum Carrier {
   FEDEX
   DHL

@@ -15,6 +15,9 @@ Built from the *Inbound & Outbound Warehouse SOP*.
 | `/submit` | Suppliers | Strict, per-box intake form. Send this link with every shipment. |
 | `/dashboard` | CEO / COO | Live view of every shipment & box, status filters, search. |
 | `/dashboard/[id]` | CEO / COO | Per-box detail + manual status updates (warehouse receiving). |
+| `/dashboard/receive` | Warehouse | Phone-friendly scan/type a tracking number to receive a box (Station #1). |
+| `/dashboard/products` | Team | SKU catalog (name, tier A/B/C) + printable 4×6 QR box labels. |
+| `/api/export` | Team | One-click CSV of every box — replaces the Google master sheet. |
 | `/api/cron/refresh-tracking` | System | Daily carrier-tracking refresh (Vercel Cron). |
 
 ### Fields captured (from the SOP)
@@ -76,6 +79,7 @@ manual-only (status updated by warehouse staff at receiving).
 
 ## Roadmap / not yet built
 
-- Per-SKU QR box labels (the SOP's printable 4×6 label).
+- Live carrier auto-tracking (wire up the EasyPost key — adapter is ready).
+- Slack notifications (add `SLACK_WEBHOOK_URL` — code is ready).
 - Sortly / Shopify purchase-order sync.
 - Email confirmation to suppliers on submit.
