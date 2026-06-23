@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/StatusBadge";
 import { BoxStatusEditor } from "@/components/BoxStatusEditor";
+import { PhotoUpload } from "@/components/PhotoUpload";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,10 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
     include: {
       boxes: {
         orderBy: { boxNumber: "asc" },
-        include: { events: { orderBy: { createdAt: "desc" }, take: 5 } },
+        include: {
+          events: { orderBy: { createdAt: "desc" }, take: 5 },
+          photos: { orderBy: { createdAt: "asc" } },
+        },
       },
     },
   });
@@ -30,7 +34,12 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
       </Link>
 
       <div className="mt-3 mb-6">
-        <h1 className="text-2xl font-semibold">{shipment.supplierName}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold">{shipment.supplierName}</h1>
+          <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-sm font-semibold">
+            {shipment.code}
+          </span>
+        </div>
         <p className="mt-1 text-sm text-muted">
           {CARRIER_LABEL[shipment.carrier]} ·{" "}
           {shipment.shippingMethod === "AIR" ? "Air" : "Sea"} · shipped{" "}
@@ -55,6 +64,11 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
                     Box #{box.boxNumber}
                   </span>
                   <StatusBadge status={box.status} />
+                  {box.hasDiscrepancy && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                      ⚠ Discrepancy
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1 font-medium">
                   {box.productName ? `${box.productName} ` : ""}
@@ -90,6 +104,13 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
                 unitsReceived={box.unitsReceived}
                 condition={box.condition}
               />
+            </div>
+
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              <div className="mb-1 text-xs font-medium text-slate-500">
+                Photos (damage / lost-units evidence)
+              </div>
+              <PhotoUpload boxId={box.id} photos={box.photos} />
             </div>
 
             {box.events.length > 0 && (

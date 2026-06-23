@@ -12,6 +12,7 @@ datasource db {
 // individually (e.g. 50 boxes => 50 Box rows, each with its own tracking #).
 model Shipment {
   id              String   @id @default(cuid())
+  code            String   @unique          // human-friendly batch code, e.g. SHP-7K3Q9P
   supplierName    String
   supplierEmail   String?
   shipmentDate    DateTime
@@ -25,6 +26,7 @@ model Shipment {
   boxes           Box[]
 
   @@index([createdAt])
+  @@index([code])
 }
 
 // One physical box. The core unit of tracking.
@@ -50,6 +52,9 @@ model Box {
   unitsReceived   Int?
   deliveredAt     DateTime?
 
+  // Set when received quantity/weight doesn't match what the supplier declared.
+  hasDiscrepancy  Boolean    @default(false)
+
   // Latest carrier tracking snapshot.
   lastCarrierStatus  String?
   lastCheckedAt      DateTime?
@@ -58,10 +63,23 @@ model Box {
   updatedAt       DateTime   @updatedAt
 
   events          StatusEvent[]
+  photos          BoxPhoto[]
 
   @@index([shipmentId])
   @@index([status])
   @@index([trackingNumber])
+}
+
+// Photo evidence for a box (e.g. the SOP's "6 photos" of damaged / lost units).
+model BoxPhoto {
+  id        String   @id @default(cuid())
+  box       Box      @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  boxId     String
+  url       String
+  caption   String?
+  createdAt DateTime @default(now())
+
+  @@index([boxId])
 }
 
 // Audit log of every status change. Drives Slack notifications.

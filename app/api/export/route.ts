@@ -20,6 +20,7 @@ export async function GET() {
   });
 
   const headers = [
+    "Shipment code",
     "Supplier",
     "Shipment date",
     "Carrier",
@@ -31,6 +32,7 @@ export async function GET() {
     "Units per box",
     "Weight of box (lbs)",
     "Status",
+    "Discrepancy",
     "Weight received",
     "Units received",
     "Condition",
@@ -41,6 +43,7 @@ export async function GET() {
 
   const rows = boxes.map((b) =>
     [
+      b.shipment.code,
       b.shipment.supplierName,
       b.shipment.shipmentDate.toISOString().slice(0, 10),
       CARRIER_LABEL[b.shipment.carrier],
@@ -52,6 +55,7 @@ export async function GET() {
       b.unitsPerBox,
       b.weightOfBox,
       STATUS_META[b.status].label,
+      b.hasDiscrepancy ? "Yes" : "",
       b.weightReceived,
       b.unitsReceived,
       b.condition === "GOOD" ? "Good" : b.condition === "LOST_UNITS" ? "Lost units" : "",

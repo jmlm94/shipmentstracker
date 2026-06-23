@@ -8,17 +8,19 @@ export const dynamic = "force-dynamic";
 const CARRIER_LABEL: Record<string, string> = { FEDEX: "FedEx", DHL: "DHL", UPS: "UPS" };
 
 export default async function OverviewPage() {
-  const [grouped, shipmentCount, supplierGroups, recent, unitsAgg] = await Promise.all([
-    prisma.box.groupBy({ by: ["status"], _count: { _all: true } }),
-    prisma.shipment.count(),
-    prisma.shipment.groupBy({ by: ["supplierName"], _count: { _all: true } }),
-    prisma.shipment.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      include: { boxes: { orderBy: { boxNumber: "asc" } } },
-    }),
-    prisma.box.aggregate({ _sum: { unitsPerBox: true } }),
-  ]);
+  const [grouped, shipmentCount, supplierGroups, recent, unitsAgg, discrepancyCount] =
+    await Promise.all([
+      prisma.box.groupBy({ by: ["status"], _count: { _all: true } }),
+      prisma.shipment.count(),
+      prisma.shipment.groupBy({ by: ["supplierName"], _count: { _all: true } }),
+      prisma.shipment.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        include: { boxes: { orderBy: { boxNumber: "asc" } } },
+      }),
+      prisma.box.aggregate({ _sum: { unitsPerBox: true } }),
+      prisma.box.count({ where: { hasDiscrepancy: true } }),
+    ]);
 
   const counts = Object.fromEntries(grouped.map((g) => [g.status, g._count._all]));
   const totalBoxes = grouped.reduce((s, g) => s + g._count._all, 0);
@@ -62,23 +64,43 @@ export default async function OverviewPage() {
       </div>
 
       {/* Needs attention banner */}
-      {attentionCount > 0 && (
-        <Link
-          href={`/dashboard/shipments?status=${ATTENTION_STATUSES.join(",")}`}
-          className="mb-6 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 transition hover:border-amber-300"
-        >
-          <div>
-            <div className="font-semibold text-amber-900">
-              {attentionCount} box{attentionCount === 1 ? "" : "es"} need attention
-            </div>
-            <div className="text-sm text-amber-800">
-              {ATTENTION_STATUSES.map((s) => `${counts[s] || 0} ${STATUS_META[s].label.toLowerCase()}`).join(
-                " · "
-              )}
-            </div>
-          </div>
-          <span className="text-amber-900">→</span>
-        </Link>
+      {(attentionCount > 0 || discrepancyCount > 0) && (
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {attentionCount > 0 && (
+            <Link
+              href={`/dashboard/shipments?status=${ATTENTION_STATUSES.join(",")}`}
+              className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 transition hover:border-amber-300"
+            >
+              <div>
+                <div className="font-semibold text-amber-900">
+                  {attentionCount} box{attentionCount === 1 ? "" : "es"} need attention
+                </div>
+                <div className="text-sm text-amber-800">
+                  {ATTENTION_STATUSES.map(
+                    (s) => `${counts[s] || 0} ${STATUS_META[s].label.toLowerCase()}`
+                  ).join(" · ")}
+                </div>
+              </div>
+              <span className="text-amber-900">→</span>
+            </Link>
+          )}
+          {discrepancyCount > 0 && (
+            <Link
+              href="/dashboard/shipments?discrepancy=1"
+              className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-5 py-4 transition hover:border-red-300"
+            >
+              <div>
+                <div className="font-semibold text-red-900">
+                  {discrepancyCount} box{discrepancyCount === 1 ? "" : "es"} with discrepancies
+                </div>
+                <div className="text-sm text-red-800">
+                  Received units or weight didn&apos;t match what was declared.
+                </div>
+              </div>
+              <span className="text-red-900">→</span>
+            </Link>
+          )}
+        </div>
       )}
 
       {/* Global status tiles */}

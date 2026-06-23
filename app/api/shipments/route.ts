@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { shipmentSchema } from "@/lib/validation";
 import { sendSlack } from "@/lib/slack";
+import { generateShipmentCode } from "@/lib/code";
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -42,8 +43,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ fieldErrors }, { status: 422 });
   }
 
+  // Generate a unique batch code, retrying on the rare collision.
+  let code = generateShipmentCode();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const clash = await prisma.shipment.findUnique({ where: { code } });
+    if (!clash) break;
+    code = generateShipmentCode();
+  }
+
   const shipment = await prisma.shipment.create({
     data: {
+      code,
       supplierName: data.supplierName,
       supplierEmail: data.supplierEmail || null,
       shipmentDate: new Date(data.shipmentDate),
@@ -75,9 +85,9 @@ export async function POST(req: Request) {
 
   const totalUnits = data.boxes.reduce((s, b) => s + b.unitsPerBox, 0);
   await sendSlack(
-    `:inbox_tray: *New shipment from ${data.supplierName}*\n` +
+    `:inbox_tray: *New shipment ${code} from ${data.supplierName}*\n` +
       `${data.boxes.length} boxes · ${totalUnits} units · ${data.carrier} (${data.shippingMethod})`
   );
 
-  return NextResponse.json({ id: shipment.id, boxes: data.boxes.length });
+  return NextResponse.json({ id: shipment.id, code, boxes: data.boxes.length });
 }

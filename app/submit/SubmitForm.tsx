@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+
+type CatalogProduct = { sku: string; name: string; unitsPerBox: number | null };
 
 type BoxRow = {
   productId: string;
@@ -9,6 +11,7 @@ type BoxRow = {
   trackingNumber: string;
   unitsPerBox: string;
   weightOfBox: string;
+  manual: boolean; // true when entering a SKU not in the catalog
 };
 
 const emptyBox = (): BoxRow => ({
@@ -17,6 +20,7 @@ const emptyBox = (): BoxRow => ({
   trackingNumber: "",
   unitsPerBox: "",
   weightOfBox: "",
+  manual: false,
 });
 
 // Field-level error map keyed by "path.to.field" e.g. "boxes.0.trackingNumber".
@@ -35,6 +39,41 @@ export default function SubmitForm() {
   const [shippingMethod, setShippingMethod] = useState("");
   const [notes, setNotes] = useState("");
   const [boxes, setBoxes] = useState<BoxRow[]>([emptyBox()]);
+
+  // Catalog of products suppliers can pick from (loaded from the dashboard's SKUs).
+  const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
+  useEffect(() => {
+    fetch("/api/public/products")
+      .then((r) => r.json())
+      .then((d) => setCatalog(d.products || []))
+      .catch(() => setCatalog([]));
+  }, []);
+
+  // When a supplier picks a product, fill SKU + name (+ default units if known).
+  function selectProduct(i: number, sku: string) {
+    if (sku === "__other__") {
+      setBoxes((prev) =>
+        prev.map((b, idx) =>
+          idx === i ? { ...b, manual: true, productId: "", productName: "" } : b
+        )
+      );
+      return;
+    }
+    const p = catalog.find((c) => c.sku === sku);
+    setBoxes((prev) =>
+      prev.map((b, idx) =>
+        idx === i
+          ? {
+              ...b,
+              manual: false,
+              productId: p ? p.sku : "",
+              productName: p ? p.name : "",
+              unitsPerBox: p?.unitsPerBox ? String(p.unitsPerBox) : b.unitsPerBox,
+            }
+          : b
+      )
+    );
+  }
 
   const totalUnits = useMemo(
     () => boxes.reduce((sum, b) => sum + (parseInt(b.unitsPerBox) || 0), 0),
@@ -101,7 +140,7 @@ export default function SubmitForm() {
         setSubmitting(false);
         return;
       }
-      router.push(`/submit/success?boxes=${data.boxes}&id=${data.id}`);
+      router.push(`/submit/success?boxes=${data.boxes}&code=${encodeURIComponent(data.code)}`);
     } catch {
       setFormError("Network error. Please try again.");
       setSubmitting(false);
@@ -222,25 +261,43 @@ export default function SubmitForm() {
                 </button>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <div className="lg:col-span-1">
-                  <label className="label">Product ID / SKU *</label>
-                  <input
-                    className="input"
-                    value={box.productId}
-                    onChange={(e) => updateBox(i, "productId", e.target.value)}
-                  />
+                <div className="sm:col-span-2 lg:col-span-2">
+                  <label className="label">Product *</label>
+                  {catalog.length > 0 && (
+                    <select
+                      className="input"
+                      value={box.manual ? "__other__" : box.productId}
+                      onChange={(e) => selectProduct(i, e.target.value)}
+                    >
+                      <option value="">Select a product…</option>
+                      {catalog.map((c) => (
+                        <option key={c.sku} value={c.sku}>
+                          {c.name} ({c.sku})
+                        </option>
+                      ))}
+                      <option value="__other__">Other / not listed…</option>
+                    </select>
+                  )}
+                  {/* Manual SKU + name: shown when catalog is empty or "Other" chosen. */}
+                  {(catalog.length === 0 || box.manual) && (
+                    <div className={`grid grid-cols-2 gap-2 ${catalog.length > 0 ? "mt-2" : ""}`}>
+                      <input
+                        className="input"
+                        value={box.productId}
+                        onChange={(e) => updateBox(i, "productId", e.target.value)}
+                        placeholder="SKU"
+                      />
+                      <input
+                        className="input"
+                        value={box.productName}
+                        onChange={(e) => updateBox(i, "productName", e.target.value)}
+                        placeholder="Product name"
+                      />
+                    </div>
+                  )}
                   {err(`boxes.${i}.productId`) && (
                     <p className="err">{err(`boxes.${i}.productId`)}</p>
                   )}
-                </div>
-                <div>
-                  <label className="label">Product name</label>
-                  <input
-                    className="input"
-                    value={box.productName}
-                    onChange={(e) => updateBox(i, "productName", e.target.value)}
-                    placeholder="optional"
-                  />
                 </div>
                 <div>
                   <label className="label">Tracking number *</label>

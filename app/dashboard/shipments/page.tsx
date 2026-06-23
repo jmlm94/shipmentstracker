@@ -17,6 +17,7 @@ export default async function ShipmentsPage({
     carrier?: string;
     method?: string;
     q?: string;
+    discrepancy?: string;
   };
 }) {
   const statuses = (searchParams.status || "")
@@ -32,24 +33,37 @@ export default async function ShipmentsPage({
     : undefined;
   const supplier = searchParams.supplier?.trim() || undefined;
   const q = (searchParams.q || "").trim();
+  const discrepancy = searchParams.discrepancy === "1";
 
-  // A box-level condition reused for both filtering shipments and the badges shown.
+  // Box-level filter — restricts which boxes are shown on each shipment card.
   const boxWhere: Prisma.BoxWhereInput = {};
   if (statuses.length) boxWhere.status = { in: statuses };
-  if (q) {
-    boxWhere.OR = [
-      { trackingNumber: { contains: q, mode: "insensitive" } },
-      { productId: { contains: q, mode: "insensitive" } },
-      { productName: { contains: q, mode: "insensitive" } },
-    ];
-  }
-  const hasBoxFilter = statuses.length > 0 || q.length > 0;
+  if (discrepancy) boxWhere.hasDiscrepancy = true;
+  const hasBoxFilter = statuses.length > 0 || discrepancy;
 
   const shipmentWhere: Prisma.ShipmentWhereInput = {};
   if (carrier) shipmentWhere.carrier = carrier;
   if (method) shipmentWhere.shippingMethod = method;
   if (supplier) shipmentWhere.supplierName = supplier;
   if (hasBoxFilter) shipmentWhere.boxes = { some: boxWhere };
+  // Free-text search across shipment code, supplier, and box tracking/SKU/name.
+  if (q) {
+    shipmentWhere.OR = [
+      { code: { contains: q, mode: "insensitive" } },
+      { supplierName: { contains: q, mode: "insensitive" } },
+      {
+        boxes: {
+          some: {
+            OR: [
+              { trackingNumber: { contains: q, mode: "insensitive" } },
+              { productId: { contains: q, mode: "insensitive" } },
+              { productName: { contains: q, mode: "insensitive" } },
+            ],
+          },
+        },
+      },
+    ];
+  }
 
   const [shipments, supplierGroups] = await Promise.all([
     prisma.shipment.findMany({
@@ -70,7 +84,7 @@ export default async function ShipmentsPage({
   ]);
 
   const totalBoxes = shipments.reduce((s, sh) => s + sh.boxes.length, 0);
-  const anyFilter = statuses.length || carrier || method || supplier || q;
+  const anyFilter = statuses.length || carrier || method || supplier || q || discrepancy;
 
   return (
     <div>
@@ -131,7 +145,7 @@ export default async function ShipmentsPage({
             ))}
           </select>
         </div>
-        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-5">
+        <div className="flex flex-wrap items-end gap-4 sm:col-span-2 lg:col-span-5">
           <div className="w-40">
             <label className="label">Method</label>
             <select className="input" name="method" defaultValue={method || ""}>
@@ -140,7 +154,17 @@ export default async function ShipmentsPage({
               <option value="SEA">Sea</option>
             </select>
           </div>
-          <button className="btn" type="submit">
+          <label className="flex items-center gap-2 pb-2 text-sm">
+            <input
+              type="checkbox"
+              name="discrepancy"
+              value="1"
+              defaultChecked={discrepancy}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Discrepancies only
+          </label>
+          <button className="btn ml-auto" type="submit">
             Apply filters
           </button>
         </div>
@@ -163,7 +187,12 @@ export default async function ShipmentsPage({
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <div className="font-medium">{shipment.supplierName}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{shipment.supplierName}</span>
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">
+                      {shipment.code}
+                    </span>
+                  </div>
                   <div className="mt-0.5 text-sm text-muted">
                     {CARRIER_LABEL[shipment.carrier]} ·{" "}
                     {shipment.shippingMethod === "AIR" ? "Air" : "Sea"} · shipped{" "}

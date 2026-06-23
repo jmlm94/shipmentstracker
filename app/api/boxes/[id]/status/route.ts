@@ -46,6 +46,18 @@ export async function PATCH(
   if (unitsReceived !== undefined) extra.unitsReceived = unitsReceived;
   if (condition !== undefined) extra.condition = condition;
 
+  // Flag a discrepancy when received units differ from declared, weight is off
+  // by more than 5%, or staff marked lost units / damaged.
+  const finalUnits = unitsReceived !== undefined ? unitsReceived : box.unitsReceived;
+  const finalWeight = weightReceived !== undefined ? weightReceived : box.weightReceived;
+  const unitMismatch = finalUnits != null && finalUnits !== box.unitsPerBox;
+  const weightMismatch =
+    finalWeight != null &&
+    box.weightOfBox > 0 &&
+    Math.abs(finalWeight - box.weightOfBox) / box.weightOfBox > 0.05;
+  const conditionBad = (condition ?? box.condition) === "LOST_UNITS" || status === "DAMAGED";
+  extra.hasDiscrepancy = Boolean(unitMismatch || weightMismatch || conditionBad);
+
   await applyStatusChange({
     box,
     toStatus: status,
@@ -54,5 +66,5 @@ export async function PATCH(
     extra,
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, hasDiscrepancy: extra.hasDiscrepancy });
 }
