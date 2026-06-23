@@ -22,7 +22,16 @@ export function clearSessionCookie() {
   cookies().delete(COOKIE_NAME);
 }
 
+// True when no password is configured — the dashboard runs open in that case.
+export function authDisabled(): boolean {
+  return !process.env.DASHBOARD_PASSWORD;
+}
+
 export function isAuthed(): boolean {
+  // TEMPORARY: with no DASHBOARD_PASSWORD set, the dashboard is open (no login).
+  // Add DASHBOARD_PASSWORD in Vercel to re-enable the password gate instantly.
+  if (authDisabled()) return true;
+
   const c = cookies().get(COOKIE_NAME)?.value;
   if (!c) return false;
   const expected = token();

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 // Look up a single box by its tracking number (used by the receiving page).
 export async function GET(req: Request) {
   if (!isAuthed()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

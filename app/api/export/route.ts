@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
 import { STATUS_META } from "@/lib/status";
 
+export const dynamic = "force-dynamic";
+
 const CARRIER_LABEL: Record<string, string> = { FEDEX: "FedEx", DHL: "DHL", UPS: "UPS" };
 
 function csvCell(v: unknown): string {

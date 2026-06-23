@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { isAuthed } from "@/lib/auth";
+import { authDisabled, isAuthed } from "@/lib/auth";
 
 export default function DashboardLayout({
   children,
@@ -38,9 +38,11 @@ export default function DashboardLayout({
               </a>
             </nav>
           </div>
-          <form action="/api/auth/logout" method="POST">
-            <button className="text-sm text-muted hover:text-ink">Sign out</button>
-          </form>
+          {!authDisabled() && (
+            <form action="/api/auth/logout" method="POST">
+              <button className="text-sm text-muted hover:text-ink">Sign out</button>
+            </form>
+          )}
         </div>
       </header>
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</div>
