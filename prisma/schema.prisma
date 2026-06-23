@@ -1,10 +1,15 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Keep all of this app's tables in their own schema so it can safely share a
+  // database with other projects. `prisma db push` only manages this schema and
+  // will never touch tables in `public` (e.g. another project's data).
+  schemas  = ["shipments"]
 }
 
 // A single shipment submitted by a supplier. The shipment-level fields are
@@ -27,6 +32,7 @@ model Shipment {
 
   @@index([createdAt])
   @@index([code])
+  @@schema("shipments")
 }
 
 // One physical box. The core unit of tracking.
@@ -68,6 +74,7 @@ model Box {
   @@index([shipmentId])
   @@index([status])
   @@index([trackingNumber])
+  @@schema("shipments")
 }
 
 // Photo evidence for a box (e.g. the SOP's "6 photos" of damaged / lost units).
@@ -80,6 +87,7 @@ model BoxPhoto {
   createdAt DateTime @default(now())
 
   @@index([boxId])
+  @@schema("shipments")
 }
 
 // Audit log of every status change. Drives Slack notifications.
@@ -96,6 +104,7 @@ model StatusEvent {
 
   @@index([boxId])
   @@index([createdAt])
+  @@schema("shipments")
 }
 
 // Catalog of SKUs. Defining a product once lets the supplier form auto-fill
@@ -111,23 +120,30 @@ model Product {
   updatedAt   DateTime @updatedAt
 
   @@index([sku])
+  @@schema("shipments")
 }
 
 enum Tier {
   A
   B
   C
+
+  @@schema("shipments")
 }
 
 enum Carrier {
   FEDEX
   DHL
   UPS
+
+  @@schema("shipments")
 }
 
 enum ShippingMethod {
   AIR
   SEA
+
+  @@schema("shipments")
 }
 
 enum BoxStatus {
@@ -138,9 +154,13 @@ enum BoxStatus {
   DAMAGED        // arrived damaged
   ADDED_IN_STOCK // received & added to inventory (warehouse)
   LOST
+
+  @@schema("shipments")
 }
 
 enum BoxCondition {
   GOOD
   LOST_UNITS
+
+  @@schema("shipments")
 }
