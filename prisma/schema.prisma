@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// A single shipment submitted by a supplier. The shipment-level fields are
+// entered once; each physical box is a Box row so every box is tracked
+// individually (e.g. 50 boxes => 50 Box rows, each with its own tracking #).
+model Shipment {
+  id              String   @id @default(cuid())
+  supplierName    String
+  supplierEmail   String?
+  shipmentDate    DateTime
+  carrier         Carrier
+  shippingMethod  ShippingMethod
+  boxesTotal      Int
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  boxes           Box[]
+
+  @@index([createdAt])
+}
+
+// One physical box. The core unit of tracking.
+model Box {
+  id              String     @id @default(cuid())
+  shipment        Shipment   @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  shipmentId      String
+
+  boxNumber       Int            // sequential within the shipment (1..N)
+  productId       String         // SKU / Product ID
+  productName     String?
+  trackingNumber  String         @unique
+  unitsPerBox     Int
+  weightOfBox     Float          // weight declared by supplier (lbs)
+
+  // Lifecycle status. Updated automatically by carrier tracking and manually
+  // at the warehouse during receiving (Station #1).
+  status          BoxStatus  @default(PENDING)
+
+  // Warehouse receiving fields (Station #1).
+  weightReceived  Float?
+  condition       BoxCondition?  // GOOD or LOST_UNITS
+  unitsReceived   Int?
+  deliveredAt     DateTime?
+
+  // Latest carrier tracking snapshot.
+  lastCarrierStatus  String?
+  lastCheckedAt      DateTime?
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  events          StatusEvent[]
+
+  @@index([shipmentId])
+  @@index([status])
+  @@index([trackingNumber])
+}
+
+// Audit log of every status change. Drives Slack notifications.
+model StatusEvent {
+  id          String   @id @default(cuid())
+  box         Box      @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  boxId       String
+  fromStatus  String?
+  toStatus    String
+  message     String?
+  source      String   // "carrier", "warehouse", "supplier"
+  notified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([boxId])
+  @@index([createdAt])
+}
+
+enum Carrier {
+  FEDEX
+  DHL
+  UPS
+}
+
+enum ShippingMethod {
+  AIR
+  SEA
+}
+
+enum BoxStatus {
+  PENDING        // submitted, not yet picked up / scanned by carrier
+  IN_TRANSIT
+  DELAYED
+  DELIVERED      // arrived at warehouse per carrier
+  ADDED_IN_STOCK // received & added to inventory (warehouse)
+  LOST
+}
+
+enum BoxCondition {
+  GOOD
+  LOST_UNITS
+}
