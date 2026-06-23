@@ -25,7 +25,7 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
 
   return (
     <div>
-      <Link href="/dashboard" className="text-sm text-muted hover:text-ink">
+      <Link href="/dashboard/shipments" className="text-sm text-muted hover:text-ink">
         ← Back to shipments
       </Link>
 

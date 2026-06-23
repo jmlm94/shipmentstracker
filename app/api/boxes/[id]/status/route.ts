@@ -11,6 +11,7 @@ const schema = z.object({
     "IN_TRANSIT",
     "DELAYED",
     "DELIVERED",
+    "DAMAGED",
     "ADDED_IN_STOCK",
     "LOST",
   ]),
