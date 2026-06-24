@@ -27,6 +27,9 @@ export default function DashboardLayout({
               <Link href="/dashboard/receive" className="hover:text-ink">
                 📥 Receive
               </Link>
+              <Link href="/dashboard/expected" className="hover:text-ink">
+                ⏳ Expected
+              </Link>
               <Link href="/dashboard/form" className="hover:text-ink">
                 📝 Smart form
               </Link>

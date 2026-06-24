@@ -21,6 +21,13 @@ export default async function OverviewPage() {
       prisma.box.count({ where: { hasDiscrepancy: true } }),
     ]);
 
+  const expected = await prisma.expectedArrival.findMany({
+    where: { status: "EXPECTED" },
+    orderBy: [{ expectedDate: "asc" }, { createdAt: "desc" }],
+    take: 5,
+    include: { items: true },
+  });
+
   const counts = Object.fromEntries(grouped.map((g) => [g.status, g._count._all]));
   const totalBoxes = grouped.reduce((s, g) => s + g._count._all, 0);
   const totalUnits = unitsAgg._sum.unitsPerBox || 0;
@@ -118,6 +125,36 @@ export default async function OverviewPage() {
           </Link>
         ))}
       </div>
+
+      {expected.length > 0 && (
+        <section className="card mb-6 p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+              ⏳ Incoming (expected)
+            </h2>
+            <Link href="/dashboard/expected" className="text-sm text-muted hover:text-ink">
+              Manage →
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {expected.map((a) => {
+              const units = a.items.reduce((s, it) => s + it.expectedUnits, 0);
+              return (
+                <div
+                  key={a.id}
+                  className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm"
+                >
+                  <span className="font-medium">{a.supplierName}</span>
+                  <span className="text-muted">
+                    {a.expectedDate ? `${a.expectedDate.toISOString().slice(0, 10)} · ` : ""}
+                    {a.items.length} product{a.items.length === 1 ? "" : "s"} · {units} units
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* By supplier */}

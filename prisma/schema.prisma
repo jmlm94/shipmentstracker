@@ -200,3 +200,42 @@ enum BoxCondition {
 
   @@schema("shipments")
 }
+
+// Internal "what's coming" list. The team logs expected arrivals (supplier +
+// products + rough quantities) so the dashboard shows incoming stock. No
+// supplier-facing link; purely for visibility.
+model ExpectedArrival {
+  id           String          @id @default(cuid())
+  supplierName String
+  expectedDate DateTime?
+  status       ExpectedStatus  @default(EXPECTED)
+  note         String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  items        ExpectedItem[]
+
+  @@index([status])
+  @@schema("shipments")
+}
+
+model ExpectedItem {
+  id           String          @id @default(cuid())
+  arrival      ExpectedArrival @relation(fields: [arrivalId], references: [id], onDelete: Cascade)
+  arrivalId    String
+  productId    String
+  productName  String
+  productImage String?
+  expectedUnits Int
+
+  @@index([arrivalId])
+  @@schema("shipments")
+}
+
+enum ExpectedStatus {
+  EXPECTED
+  ARRIVED
+  CANCELLED
+
+  @@schema("shipments")
+}
