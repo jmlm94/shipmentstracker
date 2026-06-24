@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { BoxStatus, Carrier } from "@prisma/client";
 import { ALL_STATUSES, CARRIER_LABEL, STATUS_META } from "@/lib/status";
+import { QrScanner } from "@/components/QrScanner";
 
 type FoundBox = {
   id: string;
@@ -34,14 +35,15 @@ export function ReceiveScanner() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  async function lookup(e: React.FormEvent) {
-    e.preventDefault();
+  async function runLookup(code: string) {
     setError(null);
     setBox(null);
     setSaved(false);
-    if (!tracking.trim()) return;
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    setTracking(trimmed);
     setLoading(true);
-    const res = await fetch(`/api/boxes?code=${encodeURIComponent(tracking.trim())}`);
+    const res = await fetch(`/api/boxes?code=${encodeURIComponent(trimmed)}`);
     setLoading(false);
     const data = await res.json();
     if (!res.ok) {
@@ -54,6 +56,11 @@ export function ReceiveScanner() {
     setWr(b.weightOfBox?.toString() ?? "");
     setUr(b.unitsPerBox?.toString() ?? "");
     setCond("GOOD");
+  }
+
+  function lookup(e: React.FormEvent) {
+    e.preventDefault();
+    runLookup(tracking);
   }
 
   async function save() {
@@ -97,6 +104,9 @@ export function ReceiveScanner() {
           </button>
         </div>
         {error && <p className="err mt-2">{error}</p>}
+        <div className="mt-3">
+          <QrScanner onScan={(text) => runLookup(text)} />
+        </div>
       </form>
 
       {saved && !box?.id && (

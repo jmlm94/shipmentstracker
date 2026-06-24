@@ -184,6 +184,9 @@ export default async function ShipmentsPage({
           const methods = Array.from(
             new Set(shipment.boxes.map((b) => METHOD_LABEL[b.shippingMethod]))
           );
+          const thumbs = Array.from(
+            new Set(shipment.boxes.map((b) => b.productImage).filter(Boolean))
+          ).slice(0, 6) as string[];
           return (
             <Link
               key={shipment.id}
@@ -208,6 +211,19 @@ export default async function ShipmentsPage({
                   {units} units
                 </div>
               </div>
+              {thumbs.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {thumbs.map((src) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={src}
+                      src={src}
+                      alt=""
+                      className="h-9 w-9 rounded-md border border-slate-200 object-cover"
+                    />
+                  ))}
+                </div>
+              )}
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {shipment.boxes.slice(0, 14).map((b) => (
                   <StatusBadge key={b.id} status={b.status} />
