@@ -5,7 +5,6 @@ import { StatusBadge } from "@/components/StatusBadge";
 
 export const dynamic = "force-dynamic";
 
-const CARRIER_LABEL: Record<string, string> = { FEDEX: "FedEx", DHL: "DHL", UPS: "UPS" };
 
 export default async function OverviewPage() {
   const [grouped, shipmentCount, supplierGroups, recent, unitsAgg, discrepancyCount] =
@@ -185,8 +184,7 @@ export default async function OverviewPage() {
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{shipment.supplierName}</span>
                       <span className="text-xs text-muted">
-                        {CARRIER_LABEL[shipment.carrier]} · {shipment.boxes.length} boxes ·{" "}
-                        {units} units
+                        {shipment.code} · {shipment.boxes.length} boxes · {units} units
                       </span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1">

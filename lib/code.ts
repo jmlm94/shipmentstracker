@@ -12,3 +12,8 @@ export function generateShipmentCode(): string {
   }
   return `SHP-${out}`;
 }
+
+// Per-box identifier printed on the sticker, e.g. "SHP-7K3Q9P-001".
+export function boxCodeFor(shipmentCode: string, boxNumber: number): string {
+  return `${shipmentCode}-${String(boxNumber).padStart(3, "0")}`;
+}

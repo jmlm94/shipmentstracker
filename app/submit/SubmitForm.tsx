@@ -1,108 +1,103 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ProductCombobox } from "@/components/ProductCombobox";
+import type { CatalogProduct } from "@/lib/catalog";
 
-type CatalogProduct = { sku: string; name: string; unitsPerBox: number | null };
-
-type BoxRow = {
+type Line = {
   productId: string;
   productName: string;
-  trackingNumber: string;
+  productSku: string;
+  productImage: string;
+  boxCount: string;
   unitsPerBox: string;
-  weightOfBox: string;
-  manual: boolean; // true when entering a SKU not in the catalog
+  weightPerBox: string;
+  shippingMethod: string;
+  carrier: string;
+  trackingNumber: string;
 };
 
-const emptyBox = (): BoxRow => ({
+const emptyLine = (): Line => ({
   productId: "",
   productName: "",
-  trackingNumber: "",
+  productSku: "",
+  productImage: "",
+  boxCount: "",
   unitsPerBox: "",
-  weightOfBox: "",
-  manual: false,
+  weightPerBox: "",
+  shippingMethod: "",
+  carrier: "",
+  trackingNumber: "",
 });
 
-// Field-level error map keyed by "path.to.field" e.g. "boxes.0.trackingNumber".
-type ErrorMap = Record<string, string>;
+const CARRIERS = [
+  ["UPS", "UPS"],
+  ["FEDEX", "FedEx"],
+  ["USPS", "USPS"],
+  ["DHL", "DHL"],
+  ["OTHER", "Others (Special Delivery)"],
+];
 
-export default function SubmitForm() {
+export function SubmitForm() {
   const router = useRouter();
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [errors, setErrors] = useState<ErrorMap>({});
 
   const [supplierName, setSupplierName] = useState("");
   const [supplierEmail, setSupplierEmail] = useState("");
   const [shipmentDate, setShipmentDate] = useState("");
-  const [carrier, setCarrier] = useState("");
-  const [shippingMethod, setShippingMethod] = useState("");
   const [notes, setNotes] = useState("");
-  const [boxes, setBoxes] = useState<BoxRow[]>([emptyBox()]);
+  const [lines, setLines] = useState<Line[]>([emptyLine()]);
 
-  // Catalog of products suppliers can pick from (loaded from the dashboard's SKUs).
-  const [catalog, setCatalog] = useState<CatalogProduct[]>([]);
-  useEffect(() => {
-    fetch("/api/public/products")
-      .then((r) => r.json())
-      .then((d) => setCatalog(d.products || []))
-      .catch(() => setCatalog([]));
-  }, []);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
 
-  // When a supplier picks a product, fill SKU + name (+ default units if known).
-  function selectProduct(i: number, sku: string) {
-    if (sku === "__other__") {
-      setBoxes((prev) =>
-        prev.map((b, idx) =>
-          idx === i ? { ...b, manual: true, productId: "", productName: "" } : b
-        )
-      );
-      return;
+  const err = (k: string) => errors[k];
+
+  function setLine(i: number, patch: Partial<Line>) {
+    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  }
+  function selectProduct(i: number, p: CatalogProduct) {
+    setLine(i, {
+      productId: p.id,
+      productName: p.title,
+      productSku: p.sku,
+      productImage: p.image,
+    });
+  }
+  function addLine() {
+    setLines((p) => [...p, emptyLine()]);
+  }
+  function duplicateLine(i: number) {
+    setLines((p) => {
+      const copy = { ...p[i], trackingNumber: "" };
+      const next = [...p];
+      next.splice(i + 1, 0, copy);
+      return next;
+    });
+  }
+  function removeLine(i: number) {
+    setLines((p) => (p.length === 1 ? p : p.filter((_, idx) => idx !== i)));
+  }
+  function applyToAll(field: "shippingMethod" | "carrier", value: string) {
+    setLines((p) => p.map((l) => ({ ...l, [field]: value })));
+  }
+
+  const totals = useMemo(() => {
+    let boxes = 0;
+    let units = 0;
+    for (const l of lines) {
+      const b = Number(l.boxCount) || 0;
+      const u = Number(l.unitsPerBox) || 0;
+      boxes += b;
+      units += b * u;
     }
-    const p = catalog.find((c) => c.sku === sku);
-    setBoxes((prev) =>
-      prev.map((b, idx) =>
-        idx === i
-          ? {
-              ...b,
-              manual: false,
-              productId: p ? p.sku : "",
-              productName: p ? p.name : "",
-              unitsPerBox: p?.unitsPerBox ? String(p.unitsPerBox) : b.unitsPerBox,
-            }
-          : b
-      )
-    );
-  }
-
-  const totalUnits = useMemo(
-    () => boxes.reduce((sum, b) => sum + (parseInt(b.unitsPerBox) || 0), 0),
-    [boxes]
-  );
-
-  function err(key: string) {
-    return errors[key];
-  }
-
-  function updateBox(i: number, field: keyof BoxRow, value: string) {
-    setBoxes((prev) => prev.map((b, idx) => (idx === i ? { ...b, [field]: value } : b)));
-  }
-
-  function addBox() {
-    setBoxes((prev) => [...prev, emptyBox()]);
-  }
-
-  function addBoxes(n: number) {
-    setBoxes((prev) => [...prev, ...Array.from({ length: n }, emptyBox)]);
-  }
-
-  function removeBox(i: number) {
-    setBoxes((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)));
-  }
+    return { boxes, units };
+  }, [lines]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setFormError(null);
+    setBanner(null);
     setErrors({});
     setSubmitting(true);
 
@@ -110,49 +105,56 @@ export default function SubmitForm() {
       supplierName,
       supplierEmail,
       shipmentDate,
-      carrier,
-      shippingMethod,
       notes,
-      boxesTotal: boxes.length,
-      boxes: boxes.map((b) => ({
-        productId: b.productId,
-        productName: b.productName,
-        trackingNumber: b.trackingNumber,
-        unitsPerBox: b.unitsPerBox,
-        weightOfBox: b.weightOfBox,
+      lines: lines.map((l) => ({
+        productId: l.productId,
+        productName: l.productName,
+        productSku: l.productSku,
+        productImage: l.productImage,
+        boxCount: l.boxCount,
+        unitsPerBox: l.unitsPerBox,
+        weightPerBox: l.weightPerBox,
+        shippingMethod: l.shippingMethod,
+        carrier: l.carrier,
+        trackingNumber: l.trackingNumber,
       })),
     };
 
-    try {
-      const res = await fetch("/api/shipments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+    const res = await fetch("/api/shipments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    setSubmitting(false);
+
+    if (res.ok) {
       const data = await res.json();
-      if (!res.ok) {
-        if (data.fieldErrors) {
-          setErrors(data.fieldErrors as ErrorMap);
-          setFormError("Please fix the highlighted fields.");
-        } else {
-          setFormError(data.error || "Something went wrong. Please try again.");
-        }
-        setSubmitting(false);
-        return;
-      }
-      router.push(`/submit/success?boxes=${data.boxes}&code=${encodeURIComponent(data.code)}`);
-    } catch {
-      setFormError("Network error. Please try again.");
-      setSubmitting(false);
+      router.push(
+        `/submit/success?boxes=${data.boxes}&code=${encodeURIComponent(data.code)}&id=${data.id}`
+      );
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
+    if (data.fieldErrors) {
+      setErrors(data.fieldErrors);
+      setBanner("Please fix the highlighted fields. 👇");
+    } else {
+      setBanner(data.error || "Something went wrong. Please try again.");
     }
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
+      {banner && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          {banner}
+        </div>
+      )}
+
       {/* Shipment details */}
       <section className="card p-5">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
-          Shipment details
+          📦 Shipment details
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
@@ -166,13 +168,13 @@ export default function SubmitForm() {
             {err("supplierName") && <p className="err">{err("supplierName")}</p>}
           </div>
           <div>
-            <label className="label">Supplier email</label>
+            <label className="label">Email address *</label>
             <input
               className="input"
               type="email"
               value={supplierEmail}
               onChange={(e) => setSupplierEmail(e.target.value)}
-              placeholder="optional"
+              placeholder="you@supplier.com"
             />
             {err("supplierEmail") && <p className="err">{err("supplierEmail")}</p>}
           </div>
@@ -186,175 +188,206 @@ export default function SubmitForm() {
             />
             {err("shipmentDate") && <p className="err">{err("shipmentDate")}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Carrier *</label>
-              <select
-                className="input"
-                value={carrier}
-                onChange={(e) => setCarrier(e.target.value)}
-              >
-                <option value="">Select…</option>
-                <option value="FEDEX">FedEx</option>
-                <option value="DHL">DHL</option>
-                <option value="UPS">UPS</option>
-              </select>
-              {err("carrier") && <p className="err">{err("carrier")}</p>}
-            </div>
-            <div>
-              <label className="label">Method *</label>
-              <select
-                className="input"
-                value={shippingMethod}
-                onChange={(e) => setShippingMethod(e.target.value)}
-              >
-                <option value="">Select…</option>
-                <option value="AIR">Air</option>
-                <option value="SEA">Sea</option>
-              </select>
-              {err("shippingMethod") && <p className="err">{err("shippingMethod")}</p>}
-            </div>
+          <div>
+            <label className="label">Notes</label>
+            <input
+              className="input"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Anything the warehouse should know (optional)"
+            />
           </div>
-        </div>
-        <div className="mt-4">
-          <label className="label">Notes</label>
-          <textarea
-            className="input"
-            rows={2}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Anything the warehouse should know (optional)"
-          />
         </div>
       </section>
 
-      {/* Boxes */}
+      {/* SKU lines */}
       <section className="card p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-            Boxes ({boxes.length}) · {totalUnits} units total
+            🧾 Products in this shipment
           </h2>
-          <div className="flex gap-2">
-            <button type="button" className="btn-secondary" onClick={addBox}>
-              + Add box
-            </button>
-            <button type="button" className="btn-secondary" onClick={() => addBoxes(10)}>
-              + Add 10
-            </button>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted">Apply to all:</span>
+            <select
+              className="rounded border border-slate-300 px-1.5 py-1"
+              onChange={(e) => e.target.value && applyToAll("shippingMethod", e.target.value)}
+              value=""
+            >
+              <option value="">Method…</option>
+              <option value="AIR">Air ✈️</option>
+              <option value="SEA">Sea 🚢</option>
+            </select>
+            <select
+              className="rounded border border-slate-300 px-1.5 py-1"
+              onChange={(e) => e.target.value && applyToAll("carrier", e.target.value)}
+              value=""
+            >
+              <option value="">Carrier…</option>
+              {CARRIERS.map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        {err("boxes") && <p className="err mb-2">{err("boxes")}</p>}
+        <p className="mb-3 text-xs text-muted">
+          One row per SKU. For each SKU, all its boxes use a single shipping
+          method and carrier. Tip: use <strong>Duplicate</strong> to copy a row
+          when the numbers are similar. ✨
+        </p>
 
-        <div className="space-y-3">
-          {boxes.map((box, i) => (
-            <div key={i} className="rounded-lg border border-slate-200 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500">Box #{i + 1}</span>
+        {/* Column headers (desktop) */}
+        <div className="hidden grid-cols-[2.2fr_0.7fr_0.8fr_0.9fr_0.9fr_1.1fr_1.3fr_auto] gap-2 px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400 lg:grid">
+          <div>Product</div>
+          <div># Boxes</div>
+          <div>Units/box</div>
+          <div>Wt/box (lbs)</div>
+          <div>Method</div>
+          <div>Carrier</div>
+          <div>Tracking #</div>
+          <div></div>
+        </div>
+
+        <div className="space-y-3 lg:space-y-1.5">
+          {lines.map((l, i) => (
+            <div
+              key={i}
+              className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[2.2fr_0.7fr_0.8fr_0.9fr_0.9fr_1.1fr_1.3fr_auto] lg:items-start lg:border-0 lg:p-1"
+            >
+              <div className="sm:col-span-2 lg:col-span-1">
+                <label className="label lg:hidden">Product *</label>
+                <ProductCombobox
+                  selected={{
+                    productId: l.productId,
+                    productName: l.productName,
+                    productImage: l.productImage,
+                    productSku: l.productSku,
+                  }}
+                  onSelect={(p) => selectProduct(i, p)}
+                  error={err(`lines.${i}.productId`)}
+                />
+              </div>
+              <div>
+                <label className="label lg:hidden"># Boxes *</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  value={l.boxCount}
+                  onChange={(e) => setLine(i, { boxCount: e.target.value })}
+                />
+                {err(`lines.${i}.boxCount`) && <p className="err">{err(`lines.${i}.boxCount`)}</p>}
+              </div>
+              <div>
+                <label className="label lg:hidden">Units/box *</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  value={l.unitsPerBox}
+                  onChange={(e) => setLine(i, { unitsPerBox: e.target.value })}
+                />
+                {err(`lines.${i}.unitsPerBox`) && (
+                  <p className="err">{err(`lines.${i}.unitsPerBox`)}</p>
+                )}
+              </div>
+              <div>
+                <label className="label lg:hidden">Weight/box (lbs) *</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={l.weightPerBox}
+                  onChange={(e) => setLine(i, { weightPerBox: e.target.value })}
+                />
+                {err(`lines.${i}.weightPerBox`) && (
+                  <p className="err">{err(`lines.${i}.weightPerBox`)}</p>
+                )}
+              </div>
+              <div>
+                <label className="label lg:hidden">Method *</label>
+                <select
+                  className="input"
+                  value={l.shippingMethod}
+                  onChange={(e) => setLine(i, { shippingMethod: e.target.value })}
+                >
+                  <option value="">—</option>
+                  <option value="AIR">Air ✈️</option>
+                  <option value="SEA">Sea 🚢</option>
+                </select>
+                {err(`lines.${i}.shippingMethod`) && (
+                  <p className="err">{err(`lines.${i}.shippingMethod`)}</p>
+                )}
+              </div>
+              <div>
+                <label className="label lg:hidden">Carrier *</label>
+                <select
+                  className="input"
+                  value={l.carrier}
+                  onChange={(e) => setLine(i, { carrier: e.target.value })}
+                >
+                  <option value="">—</option>
+                  {CARRIERS.map(([v, lab]) => (
+                    <option key={v} value={v}>
+                      {lab}
+                    </option>
+                  ))}
+                </select>
+                {err(`lines.${i}.carrier`) && <p className="err">{err(`lines.${i}.carrier`)}</p>}
+              </div>
+              <div>
+                <label className="label lg:hidden">Tracking # *</label>
+                <input
+                  className="input"
+                  value={l.trackingNumber}
+                  onChange={(e) => setLine(i, { trackingNumber: e.target.value })}
+                />
+                {err(`lines.${i}.trackingNumber`) && (
+                  <p className="err">{err(`lines.${i}.trackingNumber`)}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 lg:flex-col lg:gap-1 lg:pt-1.5">
                 <button
                   type="button"
+                  onClick={() => duplicateLine(i)}
+                  title="Duplicate row"
+                  className="text-xs font-medium text-blue-600 hover:underline"
+                >
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeLine(i)}
+                  disabled={lines.length === 1}
+                  title="Remove row"
                   className="text-xs font-medium text-red-600 hover:underline disabled:opacity-40"
-                  onClick={() => removeBox(i)}
-                  disabled={boxes.length === 1}
                 >
                   Remove
                 </button>
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <div className="sm:col-span-2 lg:col-span-2">
-                  <label className="label">Product *</label>
-                  {catalog.length > 0 && (
-                    <select
-                      className="input"
-                      value={box.manual ? "__other__" : box.productId}
-                      onChange={(e) => selectProduct(i, e.target.value)}
-                    >
-                      <option value="">Select a product…</option>
-                      {catalog.map((c) => (
-                        <option key={c.sku} value={c.sku}>
-                          {c.name} ({c.sku})
-                        </option>
-                      ))}
-                      <option value="__other__">Other / not listed…</option>
-                    </select>
-                  )}
-                  {/* Manual SKU + name: shown when catalog is empty or "Other" chosen. */}
-                  {(catalog.length === 0 || box.manual) && (
-                    <div className={`grid grid-cols-2 gap-2 ${catalog.length > 0 ? "mt-2" : ""}`}>
-                      <input
-                        className="input"
-                        value={box.productId}
-                        onChange={(e) => updateBox(i, "productId", e.target.value)}
-                        placeholder="SKU"
-                      />
-                      <input
-                        className="input"
-                        value={box.productName}
-                        onChange={(e) => updateBox(i, "productName", e.target.value)}
-                        placeholder="Product name"
-                      />
-                    </div>
-                  )}
-                  {err(`boxes.${i}.productId`) && (
-                    <p className="err">{err(`boxes.${i}.productId`)}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="label">Tracking number *</label>
-                  <input
-                    className="input"
-                    value={box.trackingNumber}
-                    onChange={(e) => updateBox(i, "trackingNumber", e.target.value)}
-                  />
-                  {err(`boxes.${i}.trackingNumber`) && (
-                    <p className="err">{err(`boxes.${i}.trackingNumber`)}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="label">Units in box *</label>
-                  <input
-                    className="input"
-                    type="number"
-                    min={1}
-                    value={box.unitsPerBox}
-                    onChange={(e) => updateBox(i, "unitsPerBox", e.target.value)}
-                  />
-                  {err(`boxes.${i}.unitsPerBox`) && (
-                    <p className="err">{err(`boxes.${i}.unitsPerBox`)}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="label">Weight (lbs) *</label>
-                  <input
-                    className="input"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={box.weightOfBox}
-                    onChange={(e) => updateBox(i, "weightOfBox", e.target.value)}
-                  />
-                  {err(`boxes.${i}.weightOfBox`) && (
-                    <p className="err">{err(`boxes.${i}.weightOfBox`)}</p>
-                  )}
-                </div>
-              </div>
             </div>
           ))}
         </div>
+
+        {err("lines") && <p className="err mt-2">{err("lines")}</p>}
+
+        <div className="mt-3">
+          <button type="button" onClick={addLine} className="btn-secondary">
+            + Add product line
+          </button>
+        </div>
       </section>
 
-      {formError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          {formError}
-        </div>
-      )}
-
-      <div className="flex items-center justify-end gap-3">
+      {/* Submit */}
+      <div className="flex flex-wrap items-center justify-end gap-4">
         <span className="text-sm text-muted">
-          {boxes.length} box{boxes.length === 1 ? "" : "es"} · {totalUnits} units
+          📦 {totals.boxes} box{totals.boxes === 1 ? "" : "es"} · {totals.units} units total
         </span>
-        <button type="submit" className="btn" disabled={submitting}>
-          {submitting ? "Submitting…" : "Submit shipment"}
+        <button className="btn" disabled={submitting}>
+          {submitting ? "Submitting…" : "Submit shipment 🚀"}
         </button>
       </div>
     </form>

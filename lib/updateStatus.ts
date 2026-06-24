@@ -44,7 +44,7 @@ export async function applyStatusChange(opts: {
       productName: box.productName,
       productId: box.productId,
       trackingNumber: box.trackingNumber,
-      carrier: box.shipment.carrier,
+      carrier: box.carrier,
       supplierName: box.shipment.supplierName,
       fromStatus: box.status ? STATUS_META[box.status].label : null,
       toStatus: STATUS_META[toStatus].label,

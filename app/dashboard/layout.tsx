@@ -11,30 +11,27 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-orange-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <Link href="/dashboard" className="font-semibold">
-              Shipments Tracker
+            <Link href="/dashboard" className="font-bold text-orange-600">
+              📦 Carbinox Tracker
             </Link>
             <nav className="flex items-center gap-x-4 text-sm text-muted">
               <Link href="/dashboard" className="hover:text-ink">
-                Overview
+                📊 Overview
               </Link>
               <Link href="/dashboard/shipments" className="hover:text-ink">
-                Shipments
+                🚚 Shipments
               </Link>
               <Link href="/dashboard/receive" className="hover:text-ink">
-                Receive
-              </Link>
-              <Link href="/dashboard/products" className="hover:text-ink">
-                Products
+                📥 Receive
               </Link>
               <Link href="/dashboard/form" className="hover:text-ink">
-                Smart form
+                📝 Smart form
               </Link>
               <a href="/api/export" className="hover:text-ink">
-                Export CSV
+                ⬇️ Export
               </a>
             </nav>
           </div>

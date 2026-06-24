@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { BoxStatus, Carrier, Prisma, ShippingMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { ALL_STATUSES, STATUS_META } from "@/lib/status";
+import { ALL_CARRIERS, ALL_STATUSES, CARRIER_LABEL, METHOD_LABEL, STATUS_META } from "@/lib/status";
 import { StatusBadge } from "@/components/StatusBadge";
 
 export const dynamic = "force-dynamic";
-
-const CARRIER_LABEL: Record<string, string> = { FEDEX: "FedEx", DHL: "DHL", UPS: "UPS" };
 
 export default async function ShipmentsPage({
   searchParams,
@@ -25,7 +23,7 @@ export default async function ShipmentsPage({
     .map((s) => s.trim())
     .filter((s): s is BoxStatus => ALL_STATUSES.includes(s as BoxStatus));
 
-  const carrier = ["FEDEX", "DHL", "UPS"].includes(searchParams.carrier || "")
+  const carrier = ALL_CARRIERS.includes(searchParams.carrier as Carrier)
     ? (searchParams.carrier as Carrier)
     : undefined;
   const method = ["AIR", "SEA"].includes(searchParams.method || "")
@@ -36,14 +34,15 @@ export default async function ShipmentsPage({
   const discrepancy = searchParams.discrepancy === "1";
 
   // Box-level filter — restricts which boxes are shown on each shipment card.
+  // Carrier and method now live on each box (per SKU line).
   const boxWhere: Prisma.BoxWhereInput = {};
   if (statuses.length) boxWhere.status = { in: statuses };
   if (discrepancy) boxWhere.hasDiscrepancy = true;
-  const hasBoxFilter = statuses.length > 0 || discrepancy;
+  if (carrier) boxWhere.carrier = carrier;
+  if (method) boxWhere.shippingMethod = method;
+  const hasBoxFilter = Object.keys(boxWhere).length > 0;
 
   const shipmentWhere: Prisma.ShipmentWhereInput = {};
-  if (carrier) shipmentWhere.carrier = carrier;
-  if (method) shipmentWhere.shippingMethod = method;
   if (supplier) shipmentWhere.supplierName = supplier;
   if (hasBoxFilter) shipmentWhere.boxes = { some: boxWhere };
   // Free-text search across shipment code, supplier, and box tracking/SKU/name.
@@ -129,9 +128,11 @@ export default async function ShipmentsPage({
           <label className="label">Carrier</label>
           <select className="input" name="carrier" defaultValue={carrier || ""}>
             <option value="">All</option>
-            <option value="FEDEX">FedEx</option>
-            <option value="DHL">DHL</option>
-            <option value="UPS">UPS</option>
+            {ALL_CARRIERS.map((c) => (
+              <option key={c} value={c}>
+                {CARRIER_LABEL[c]}
+              </option>
+            ))}
           </select>
         </div>
         <div>
@@ -179,6 +180,10 @@ export default async function ShipmentsPage({
         )}
         {shipments.map((shipment) => {
           const units = shipment.boxes.reduce((sum, b) => sum + b.unitsPerBox, 0);
+          const carriers = Array.from(new Set(shipment.boxes.map((b) => CARRIER_LABEL[b.carrier])));
+          const methods = Array.from(
+            new Set(shipment.boxes.map((b) => METHOD_LABEL[b.shippingMethod]))
+          );
           return (
             <Link
               key={shipment.id}
@@ -194,8 +199,7 @@ export default async function ShipmentsPage({
                     </span>
                   </div>
                   <div className="mt-0.5 text-sm text-muted">
-                    {CARRIER_LABEL[shipment.carrier]} ·{" "}
-                    {shipment.shippingMethod === "AIR" ? "Air" : "Sea"} · shipped{" "}
+                    {carriers.join(", ") || "—"} · {methods.join(", ") || "—"} · shipped{" "}
                     {shipment.shipmentDate.toISOString().slice(0, 10)}
                   </div>
                 </div>

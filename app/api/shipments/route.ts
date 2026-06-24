@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { shipmentSchema } from "@/lib/validation";
 import { sendSlack } from "@/lib/slack";
-import { generateShipmentCode } from "@/lib/code";
+import { generateShipmentCode, boxCodeFor } from "@/lib/code";
+import { CARRIER_LABEL } from "@/lib/status";
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -14,7 +16,6 @@ export async function POST(req: Request) {
 
   const parsed = shipmentSchema.safeParse(body);
   if (!parsed.success) {
-    // Flatten Zod issues into a "path.to.field" -> message map for the UI.
     const fieldErrors: Record<string, string> = {};
     for (const issue of parsed.error.issues) {
       const key = issue.path.join(".");
@@ -25,24 +26,6 @@ export async function POST(req: Request) {
 
   const data = parsed.data;
 
-  // Reject tracking numbers that already exist in the system.
-  const trackingNumbers = data.boxes.map((b) => b.trackingNumber);
-  const existing = await prisma.box.findMany({
-    where: { trackingNumber: { in: trackingNumbers } },
-    select: { trackingNumber: true },
-  });
-  if (existing.length > 0) {
-    const fieldErrors: Record<string, string> = {};
-    const dup = new Set(existing.map((e) => e.trackingNumber));
-    data.boxes.forEach((b, i) => {
-      if (dup.has(b.trackingNumber)) {
-        fieldErrors[`boxes.${i}.trackingNumber`] =
-          "This tracking number is already in the system";
-      }
-    });
-    return NextResponse.json({ fieldErrors }, { status: 422 });
-  }
-
   // Generate a unique batch code, retrying on the rare collision.
   let code = generateShipmentCode();
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -51,43 +34,78 @@ export async function POST(req: Request) {
     code = generateShipmentCode();
   }
 
-  const shipment = await prisma.shipment.create({
-    data: {
-      code,
-      supplierName: data.supplierName,
-      supplierEmail: data.supplierEmail || null,
-      shipmentDate: new Date(data.shipmentDate),
-      carrier: data.carrier,
-      shippingMethod: data.shippingMethod,
-      boxesTotal: data.boxes.length,
-      notes: data.notes || null,
-      boxes: {
-        create: data.boxes.map((b, i) => ({
-          boxNumber: i + 1,
-          productId: b.productId,
-          productName: b.productName || null,
-          trackingNumber: b.trackingNumber,
-          unitsPerBox: b.unitsPerBox,
-          weightOfBox: b.weightOfBox,
-          status: "PENDING",
-          events: {
-            create: {
-              toStatus: "PENDING",
-              source: "supplier",
-              message: "Box submitted by supplier",
-              notified: true,
-            },
-          },
-        })),
+  const totalBoxes = data.lines.reduce((s, l) => s + l.boxCount, 0);
+  const totalUnits = data.lines.reduce((s, l) => s + l.boxCount * l.unitsPerBox, 0);
+
+  // Create shipment → lines → expand each line into one Box per physical box,
+  // each with a unique internal code (printed on its sticker QR).
+  const shipment = await prisma.$transaction(async (tx) => {
+    const created = await tx.shipment.create({
+      data: {
+        code,
+        supplierName: data.supplierName,
+        supplierEmail: data.supplierEmail || null,
+        shipmentDate: new Date(data.shipmentDate),
+        boxesTotal: totalBoxes,
+        notes: data.notes || null,
       },
-    },
+    });
+
+    let boxNumber = 0;
+    for (const l of data.lines) {
+      const line = await tx.shipmentLine.create({
+        data: {
+          shipmentId: created.id,
+          productId: l.productId,
+          productName: l.productName,
+          productSku: l.productSku || null,
+          productImage: l.productImage || null,
+          boxCount: l.boxCount,
+          unitsPerBox: l.unitsPerBox,
+          weightPerBox: l.weightPerBox,
+          shippingMethod: l.shippingMethod,
+          carrier: l.carrier,
+          trackingNumber: l.trackingNumber,
+        },
+      });
+
+      const boxes: Prisma.BoxCreateManyInput[] = Array.from(
+        { length: l.boxCount },
+        () => {
+          boxNumber += 1;
+          return {
+            shipmentId: created.id,
+            lineId: line.id,
+            boxCode: boxCodeFor(code, boxNumber),
+            boxNumber,
+            productId: l.productId,
+            productName: l.productName,
+            productImage: l.productImage || null,
+            trackingNumber: l.trackingNumber,
+            unitsPerBox: l.unitsPerBox,
+            weightOfBox: l.weightPerBox,
+            shippingMethod: l.shippingMethod,
+            carrier: l.carrier,
+            status: "PENDING" as const,
+          };
+        }
+      );
+      await tx.box.createMany({ data: boxes });
+    }
+
+    return created;
   });
 
-  const totalUnits = data.boxes.reduce((s, b) => s + b.unitsPerBox, 0);
   await sendSlack(
     `:inbox_tray: *New shipment ${code} from ${data.supplierName}*\n` +
-      `${data.boxes.length} boxes · ${totalUnits} units · ${data.carrier} (${data.shippingMethod})`
+      `${totalBoxes} boxes · ${totalUnits} units · ${data.lines.length} SKU line(s)\n` +
+      data.lines
+        .map(
+          (l) =>
+            `• ${l.productName}: ${l.boxCount}×${l.unitsPerBox} via ${CARRIER_LABEL[l.carrier]}`
+        )
+        .join("\n")
   );
 
-  return NextResponse.json({ id: shipment.id, code, boxes: data.boxes.length });
+  return NextResponse.json({ id: shipment.id, code, boxes: totalBoxes });
 }

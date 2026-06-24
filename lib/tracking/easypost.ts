@@ -10,7 +10,9 @@ import type { TrackingProvider, TrackingResult } from "./index";
 const CARRIER_MAP: Record<Carrier, string> = {
   FEDEX: "FedEx",
   UPS: "UPS",
+  USPS: "USPS",
   DHL: "DHLExpress",
+  OTHER: "", // special / unknown delivery — not auto-trackable
 };
 
 export const easypostProvider: TrackingProvider = {
@@ -18,6 +20,7 @@ export const easypostProvider: TrackingProvider = {
   async track(trackingNumber: string, carrier: Carrier): Promise<TrackingResult | null> {
     const key = process.env.EASYPOST_API_KEY;
     if (!key) return null;
+    if (!CARRIER_MAP[carrier]) return null; // e.g. OTHER / special delivery
 
     const auth = "Basic " + Buffer.from(`${key}:`).toString("base64");
     try {

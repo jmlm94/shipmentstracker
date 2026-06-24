@@ -4,19 +4,26 @@ import { isAuthed } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-// Look up a single box by its tracking number (used by the receiving page).
+// Look up a box for receiving. Prefer the per-box code (printed on the sticker
+// QR); fall back to a tracking number (returns the first matching box).
 export async function GET(req: Request) {
   if (!isAuthed()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const tracking = new URL(req.url).searchParams.get("tracking")?.trim();
-  if (!tracking) return NextResponse.json({ error: "Missing tracking number" }, { status: 400 });
+  const params = new URL(req.url).searchParams;
+  const code = (params.get("code") || params.get("tracking") || "").trim();
+  if (!code) return NextResponse.json({ error: "Scan or enter a box code" }, { status: 400 });
 
-  const box = await prisma.box.findUnique({
-    where: { trackingNumber: tracking },
-    include: { shipment: { select: { supplierName: true, carrier: true } } },
+  const box = await prisma.box.findFirst({
+    where: { OR: [{ boxCode: code }, { trackingNumber: code }] },
+    include: { shipment: { select: { supplierName: true, code: true } } },
   });
 
-  if (!box) return NextResponse.json({ error: "No box found with that tracking number" }, { status: 404 });
+  if (!box) {
+    return NextResponse.json(
+      { error: "No box found for that code or tracking number" },
+      { status: 404 }
+    );
+  }
 
   return NextResponse.json({ box });
 }

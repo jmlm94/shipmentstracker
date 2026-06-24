@@ -1,17 +1,32 @@
-import { BoxStatus } from "@prisma/client";
+import { BoxStatus, Carrier, ShippingMethod } from "@prisma/client";
+
+export const CARRIER_LABEL: Record<Carrier, string> = {
+  UPS: "UPS",
+  FEDEX: "FedEx",
+  USPS: "USPS",
+  DHL: "DHL",
+  OTHER: "Other (Special Delivery)",
+};
+
+export const ALL_CARRIERS: Carrier[] = ["UPS", "FEDEX", "USPS", "DHL", "OTHER"];
+
+export const METHOD_LABEL: Record<ShippingMethod, string> = {
+  AIR: "Air ✈️",
+  SEA: "Sea 🚢",
+};
 
 // Human-friendly labels and colors for each status, used across the UI.
 export const STATUS_META: Record<
   BoxStatus,
-  { label: string; color: string; dot: string; attention?: boolean }
+  { label: string; emoji: string; color: string; dot: string; attention?: boolean }
 > = {
-  PENDING: { label: "Not shipped", color: "bg-slate-100 text-slate-700", dot: "bg-slate-400" },
-  IN_TRANSIT: { label: "In transit", color: "bg-blue-100 text-blue-700", dot: "bg-blue-500" },
-  DELAYED: { label: "Stuck", color: "bg-amber-100 text-amber-800", dot: "bg-amber-500", attention: true },
-  DELIVERED: { label: "Delivered", color: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
-  DAMAGED: { label: "Damaged", color: "bg-orange-100 text-orange-800", dot: "bg-orange-500", attention: true },
-  ADDED_IN_STOCK: { label: "Added in stock", color: "bg-green-100 text-green-800", dot: "bg-green-600" },
-  LOST: { label: "Lost", color: "bg-red-100 text-red-700", dot: "bg-red-500", attention: true },
+  PENDING: { label: "Not shipped", emoji: "🕓", color: "bg-slate-100 text-slate-700", dot: "bg-slate-400" },
+  IN_TRANSIT: { label: "In transit", emoji: "🚚", color: "bg-blue-100 text-blue-700", dot: "bg-blue-500" },
+  DELAYED: { label: "Stuck", emoji: "⚠️", color: "bg-amber-100 text-amber-800", dot: "bg-amber-500", attention: true },
+  DELIVERED: { label: "Delivered", emoji: "✅", color: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
+  DAMAGED: { label: "Damaged", emoji: "💥", color: "bg-orange-100 text-orange-800", dot: "bg-orange-500", attention: true },
+  ADDED_IN_STOCK: { label: "Added in stock", emoji: "🏬", color: "bg-green-100 text-green-800", dot: "bg-green-600" },
+  LOST: { label: "Lost", emoji: "❌", color: "bg-red-100 text-red-700", dot: "bg-red-500", attention: true },
 };
 
 // Order used everywhere statuses are listed (forms, tiles, filters).

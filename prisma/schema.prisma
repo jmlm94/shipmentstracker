@@ -12,22 +12,21 @@ datasource db {
   schemas  = ["shipments"]
 }
 
-// A single shipment submitted by a supplier. The shipment-level fields are
-// entered once; each physical box is a Box row so every box is tracked
-// individually (e.g. 50 boxes => 50 Box rows, each with its own tracking #).
+// A single shipment submitted by a supplier. Shipment-level fields are entered
+// once. The supplier then adds one ShipmentLine per SKU; each line is expanded
+// into individual Box rows (one per physical box) so every box is tracked.
 model Shipment {
   id              String   @id @default(cuid())
   code            String   @unique          // human-friendly batch code, e.g. SHP-7K3Q9P
   supplierName    String
   supplierEmail   String?
   shipmentDate    DateTime
-  carrier         Carrier
-  shippingMethod  ShippingMethod
-  boxesTotal      Int
   notes           String?
+  boxesTotal      Int
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  lines           ShipmentLine[]
   boxes           Box[]
 
   @@index([createdAt])
@@ -35,18 +34,51 @@ model Shipment {
   @@schema("shipments")
 }
 
-// One physical box. The core unit of tracking.
+// The "plan" for one SKU within a shipment: which product, how many boxes, and
+// how they're shipped. Lets us compare plan vs. what's actually received.
+model ShipmentLine {
+  id              String   @id @default(cuid())
+  shipment        Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  shipmentId      String
+
+  productId       String          // Shopify handle (stable id)
+  productName     String          // product title
+  productSku      String?         // Shopify SKU when available
+  productImage    String?
+
+  boxCount        Int
+  unitsPerBox     Int
+  weightPerBox    Float           // lbs, per box
+  shippingMethod  ShippingMethod  // one method for the whole SKU line
+  carrier         Carrier
+  trackingNumber  String          // shared across this line's boxes
+
+  boxes           Box[]
+
+  @@index([shipmentId])
+  @@schema("shipments")
+}
+
+// One physical box. The core unit of tracking. Carries its own internal code
+// (printed on the sticker QR) used for receiving and plan-vs-actual checks.
 model Box {
   id              String     @id @default(cuid())
   shipment        Shipment   @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
   shipmentId      String
+  line            ShipmentLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  lineId          String
 
+  boxCode         String     @unique   // internal per-box id, e.g. SHP-7K3Q9P-01
   boxNumber       Int            // sequential within the shipment (1..N)
-  productId       String         // SKU / Product ID
-  productName     String?
-  trackingNumber  String         @unique
+
+  productId       String         // Shopify handle
+  productName     String?        // product title
+  productImage    String?
+  trackingNumber  String         // carrier tracking (shared per SKU line, not unique)
   unitsPerBox     Int
   weightOfBox     Float          // weight declared by supplier (lbs)
+  shippingMethod  ShippingMethod
+  carrier         Carrier
 
   // Lifecycle status. Updated automatically by carrier tracking and manually
   // at the warehouse during receiving (Station #1).
@@ -72,7 +104,9 @@ model Box {
   photos          BoxPhoto[]
 
   @@index([shipmentId])
+  @@index([lineId])
   @@index([status])
+  @@index([boxCode])
   @@index([trackingNumber])
   @@schema("shipments")
 }
@@ -132,9 +166,11 @@ enum Tier {
 }
 
 enum Carrier {
-  FEDEX
-  DHL
   UPS
+  FEDEX
+  USPS
+  DHL
+  OTHER
 
   @@schema("shipments")
 }

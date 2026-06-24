@@ -5,9 +5,9 @@ export function StatusBadge({ status }: { status: BoxStatus }) {
   const meta = STATUS_META[status];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.color}`}
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.color}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+      <span aria-hidden>{meta.emoji}</span>
       {meta.label}
     </span>
   );

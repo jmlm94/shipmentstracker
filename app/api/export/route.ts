@@ -1,10 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
-import { STATUS_META } from "@/lib/status";
+import { CARRIER_LABEL, STATUS_META } from "@/lib/status";
 
 export const dynamic = "force-dynamic";
-
-const CARRIER_LABEL: Record<string, string> = { FEDEX: "FedEx", DHL: "DHL", UPS: "UPS" };
 
 function csvCell(v: unknown): string {
   if (v === null || v === undefined) return "";
@@ -23,6 +21,7 @@ export async function GET() {
 
   const headers = [
     "Shipment code",
+    "Box code",
     "Supplier",
     "Shipment date",
     "Carrier",
@@ -46,10 +45,11 @@ export async function GET() {
   const rows = boxes.map((b) =>
     [
       b.shipment.code,
+      b.boxCode,
       b.shipment.supplierName,
       b.shipment.shipmentDate.toISOString().slice(0, 10),
-      CARRIER_LABEL[b.shipment.carrier],
-      b.shipment.shippingMethod === "AIR" ? "Air" : "Sea",
+      CARRIER_LABEL[b.carrier],
+      b.shippingMethod === "AIR" ? "Air" : "Sea",
       b.boxNumber,
       b.productId,
       b.productName,

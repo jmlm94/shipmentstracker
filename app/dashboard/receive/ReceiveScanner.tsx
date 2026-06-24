@@ -2,22 +2,23 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BoxStatus } from "@prisma/client";
-import { ALL_STATUSES, STATUS_META } from "@/lib/status";
+import { BoxStatus, Carrier } from "@prisma/client";
+import { ALL_STATUSES, CARRIER_LABEL, STATUS_META } from "@/lib/status";
 
 type FoundBox = {
   id: string;
+  boxCode: string;
   boxNumber: number;
   productId: string;
   productName: string | null;
+  productImage: string | null;
   trackingNumber: string;
   unitsPerBox: number;
   weightOfBox: number;
+  carrier: Carrier;
   status: BoxStatus;
-  shipment: { supplierName: string; carrier: string };
+  shipment: { supplierName: string; code: string };
 };
-
-const CARRIER_LABEL: Record<string, string> = { FEDEX: "FedEx", DHL: "DHL", UPS: "UPS" };
 
 export function ReceiveScanner() {
   const [tracking, setTracking] = useState("");
@@ -40,7 +41,7 @@ export function ReceiveScanner() {
     setSaved(false);
     if (!tracking.trim()) return;
     setLoading(true);
-    const res = await fetch(`/api/boxes?tracking=${encodeURIComponent(tracking.trim())}`);
+    const res = await fetch(`/api/boxes?code=${encodeURIComponent(tracking.trim())}`);
     setLoading(false);
     const data = await res.json();
     if (!res.ok) {
@@ -81,13 +82,13 @@ export function ReceiveScanner() {
   return (
     <div className="space-y-4">
       <form onSubmit={lookup} className="card p-4">
-        <label className="label">Tracking number</label>
+        <label className="label">Box code (scan the sticker QR) or tracking #</label>
         <div className="flex gap-2">
           <input
             className="input"
             value={tracking}
             onChange={(e) => setTracking(e.target.value)}
-            placeholder="Scan or type…"
+            placeholder="e.g. SHP-7K3Q9P-001"
             autoFocus
             autoComplete="off"
           />
@@ -107,19 +108,25 @@ export function ReceiveScanner() {
       {box && (
         <div className="card p-4">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500">Box #{box.boxNumber}</span>
+            <span className="font-mono text-xs font-semibold text-orange-700">{box.boxCode}</span>
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_META[box.status].color}`}
             >
               {STATUS_META[box.status].label}
             </span>
           </div>
-          <div className="mt-1 font-medium">
-            {box.productName ? `${box.productName} ` : ""}
-            <span className="text-muted">({box.productId})</span>
+          <div className="mt-1 flex items-center gap-2 font-medium">
+            {box.productImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={box.productImage} alt="" className="h-8 w-8 rounded object-cover" />
+            )}
+            <span>
+              {box.productName ? `${box.productName} ` : ""}
+              <span className="text-muted">({box.productId})</span>
+            </span>
           </div>
           <div className="mt-1 text-sm text-muted">
-            {box.shipment.supplierName} · {CARRIER_LABEL[box.shipment.carrier]} ·{" "}
+            {box.shipment.supplierName} · {box.shipment.code} · {CARRIER_LABEL[box.carrier]} ·{" "}
             {box.unitsPerBox} units · declared {box.weightOfBox} lbs
           </div>
 

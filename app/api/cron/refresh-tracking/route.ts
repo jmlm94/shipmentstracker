@@ -34,7 +34,7 @@ export async function GET(req: Request) {
   let changed = 0;
 
   for (const box of boxes) {
-    const result = await provider.track(box.trackingNumber, box.shipment.carrier);
+    const result = await provider.track(box.trackingNumber, box.carrier);
     checked++;
     if (!result) continue;
 
