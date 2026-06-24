@@ -7,18 +7,18 @@ export const dynamic = "force-dynamic";
 const FIELDS = [
   { group: "Shipment (filled once)", items: [
     "Supplier name",
-    "Supplier email (optional)",
+    "Email address",
     "Shipment date",
-    "Carrier — FedEx / DHL / UPS",
-    "Method — Air / Sea",
     "Notes (optional)",
   ] },
-  { group: "Each box (one row per box)", items: [
-    "Product ID / SKU",
-    "Product name (optional)",
-    "Tracking number — unique per box",
-    "Units in the box",
-    "Weight of the box (lbs)",
+  { group: "Each product / SKU (one row per SKU)", items: [
+    "Product — picked from the Carbinox catalog (with image)",
+    "Number of boxes",
+    "Units per box",
+    "Weight per box (lbs)",
+    "Shipping method — Air or Sea (one per SKU)",
+    "Carrier — UPS / FedEx / USPS / DHL / Others",
+    "Tracking number",
   ] },
 ];
 
@@ -28,7 +28,7 @@ export default function FormTemplatePage() {
   const proto = h.get("x-forwarded-proto") || "https";
   const link = `${proto}://${host}/submit`;
 
-  const message = `Hi! Every time you ship to our warehouse, please fill out this short form — one row per box, with each box's tracking number, SKU, unit count, and weight. Be exact: we verify every box on arrival.
+  const message = `Hi! Every time you ship to our warehouse, please fill out this short form — one row per product (SKU): pick the product, then enter the number of boxes, units per box, weight per box, shipping method, carrier and tracking number. After submitting you'll get a PDF of box labels — print and stick one on each box before shipping. Be exact: we verify every box on arrival.
 
 ${link}
 
@@ -86,8 +86,9 @@ Thank you!`;
           ))}
         </div>
         <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs text-muted">
-          Every field is required and validated. Duplicate tracking numbers are
-          rejected automatically, so each box is guaranteed to be unique.
+          Every field is required and validated. Each SKU line is expanded into
+          individual boxes, and every box gets its own QR-coded label so it can
+          be tracked and checked on arrival.
         </p>
       </section>
     </div>
