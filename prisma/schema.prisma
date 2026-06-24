@@ -141,27 +141,18 @@ model StatusEvent {
   @@schema("shipments")
 }
 
-// Catalog of SKUs. Defining a product once lets the supplier form auto-fill
-// names and powers the printable QR box labels. Tier mirrors the SOP's
-// A / B / C warehouse zones.
+// The product catalog used by the supplier form. Populated by importing a
+// Sortly CSV export (see /dashboard/products). When empty, the form falls back
+// to the bundled Shopify snapshot in lib/catalog.ts.
 model Product {
-  id          String   @id @default(cuid())
-  sku         String   @unique
-  name        String
-  tier        Tier     @default(A)
-  unitsPerBox Int?     // typical units per box, used to pre-fill labels/forms
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  sku       String?
+  name      String
+  image     String?
+  source    String?  // e.g. "sortly"
+  createdAt DateTime @default(now())
 
   @@index([sku])
-  @@schema("shipments")
-}
-
-enum Tier {
-  A
-  B
-  C
-
   @@schema("shipments")
 }
 

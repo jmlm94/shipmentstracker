@@ -1,50 +1,51 @@
-import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { ProductManager } from "./ProductManager";
+import { CATALOG } from "@/lib/catalog";
+import { CsvImport } from "./CsvImport";
 
 export const dynamic = "force-dynamic";
 
-const TIER_LABEL: Record<string, string> = {
-  A: "Tier A",
-  B: "Tier B",
-  C: "Tier C",
-};
-
 export default async function ProductsPage() {
-  const products = await prisma.product.findMany({ orderBy: { sku: "asc" } });
+  const imported = await prisma.product.findMany({ orderBy: { name: "asc" } });
+  const usingImported = imported.length > 0;
+
+  // What the supplier form is actually showing right now.
+  const shown = usingImported
+    ? imported.map((p) => ({ id: p.id, title: p.name, sku: p.sku || "", image: p.image || "" }))
+    : CATALOG;
 
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Products (SKUs)</h1>
+        <h1 className="text-2xl font-semibold">🛍️ Products</h1>
         <p className="mt-1 text-sm text-muted">
-          Define each SKU once. This powers auto-fill on the supplier form and
-          the printable QR box labels.
+          The catalog suppliers pick from on the smart form.
         </p>
       </div>
 
-      <ProductManager />
+      <div className="mb-5">
+        <CsvImport />
+      </div>
 
-      <div className="mt-6 space-y-2">
-        {products.length === 0 && (
-          <div className="card p-8 text-center text-sm text-muted">
-            No products yet. Add your first SKU above.
-          </div>
-        )}
-        {products.map((p) => (
-          <div key={p.id} className="card flex items-center justify-between p-4">
-            <div>
-              <div className="font-medium">
-                {p.name} <span className="font-mono text-sm text-muted">({p.sku})</span>
+      <div className="mb-3 text-sm text-muted">
+        Currently showing <strong>{shown.length}</strong> products ·{" "}
+        {usingImported ? "imported from your CSV" : "built-in Sortly snapshot (upload a CSV to override)"}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+        {shown.map((p) => (
+          <div key={p.id} className="flex items-center gap-2 rounded-lg border border-slate-200 p-2">
+            {p.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={p.image} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-slate-100 text-xs text-slate-400">
+                —
               </div>
-              <div className="mt-0.5 text-sm text-muted">
-                {TIER_LABEL[p.tier]}
-                {p.unitsPerBox ? ` · ${p.unitsPerBox} units/box` : ""}
-              </div>
+            )}
+            <div className="min-w-0">
+              <div className="truncate text-xs font-medium">{p.title}</div>
+              {p.sku && <div className="truncate text-[11px] text-muted">{p.sku}</div>}
             </div>
-            <Link href={`/dashboard/products/${p.id}/label`} className="btn-secondary">
-              QR label
-            </Link>
           </div>
         ))}
       </div>

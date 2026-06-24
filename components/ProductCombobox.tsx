@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CATALOG, type CatalogProduct } from "@/lib/catalog";
 
 type Selected = {
@@ -9,6 +9,18 @@ type Selected = {
   productImage?: string;
   productSku?: string;
 };
+
+// Load the catalog once and share across all combobox instances.
+let catalogCache: Promise<CatalogProduct[]> | null = null;
+function loadCatalog(): Promise<CatalogProduct[]> {
+  if (!catalogCache) {
+    catalogCache = fetch("/api/public/catalog")
+      .then((r) => r.json())
+      .then((d) => (d.products?.length ? d.products : CATALOG))
+      .catch(() => CATALOG);
+  }
+  return catalogCache;
+}
 
 export function ProductCombobox({
   selected,
@@ -21,14 +33,19 @@ export function ProductCombobox({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [catalog, setCatalog] = useState<CatalogProduct[]>(CATALOG);
+
+  useEffect(() => {
+    loadCatalog().then(setCatalog);
+  }, []);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return CATALOG;
-    return CATALOG.filter(
+    if (!q) return catalog;
+    return catalog.filter(
       (p) => p.title.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
     );
-  }, [query]);
+  }, [query, catalog]);
 
   return (
     <>
