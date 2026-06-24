@@ -238,26 +238,34 @@ export function SubmitForm() {
           when the numbers are similar. ✨
         </p>
 
-        {/* Column headers (desktop) */}
-        <div className="hidden grid-cols-[2.2fr_0.7fr_0.8fr_0.9fr_0.9fr_1.1fr_1.3fr_auto] gap-2 px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400 lg:grid">
-          <div>Product</div>
-          <div># Boxes</div>
-          <div>Units/box</div>
-          <div>Wt/box (lbs)</div>
-          <div>Method</div>
-          <div>Carrier</div>
-          <div>Tracking #</div>
-          <div></div>
-        </div>
-
-        <div className="space-y-3 lg:space-y-1.5">
+        <div className="space-y-4">
           {lines.map((l, i) => (
-            <div
-              key={i}
-              className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[2.2fr_0.7fr_0.8fr_0.9fr_0.9fr_1.1fr_1.3fr_auto] lg:items-start lg:border-0 lg:p-1"
-            >
-              <div className="sm:col-span-2 lg:col-span-1">
-                <label className="label lg:hidden">Product *</label>
+            <div key={i} className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  SKU line {i + 1}
+                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => duplicateLine(i)}
+                    className="text-xs font-medium text-blue-600 hover:underline"
+                  >
+                    📋 Copy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeLine(i)}
+                    disabled={lines.length === 1}
+                    className="text-xs font-medium text-red-600 hover:underline disabled:opacity-40"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <label className="label">Product *</label>
                 <ProductCombobox
                   selected={{
                     productId: l.productId,
@@ -269,104 +277,88 @@ export function SubmitForm() {
                   error={err(`lines.${i}.productId`)}
                 />
               </div>
-              <div>
-                <label className="label lg:hidden"># Boxes *</label>
-                <input
-                  className="input"
-                  type="number"
-                  min={1}
-                  value={l.boxCount}
-                  onChange={(e) => setLine(i, { boxCount: e.target.value })}
-                />
-                {err(`lines.${i}.boxCount`) && <p className="err">{err(`lines.${i}.boxCount`)}</p>}
-              </div>
-              <div>
-                <label className="label lg:hidden">Units/box *</label>
-                <input
-                  className="input"
-                  type="number"
-                  min={1}
-                  value={l.unitsPerBox}
-                  onChange={(e) => setLine(i, { unitsPerBox: e.target.value })}
-                />
-                {err(`lines.${i}.unitsPerBox`) && (
-                  <p className="err">{err(`lines.${i}.unitsPerBox`)}</p>
-                )}
-              </div>
-              <div>
-                <label className="label lg:hidden">Weight/box (lbs) *</label>
-                <input
-                  className="input"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={l.weightPerBox}
-                  onChange={(e) => setLine(i, { weightPerBox: e.target.value })}
-                />
-                {err(`lines.${i}.weightPerBox`) && (
-                  <p className="err">{err(`lines.${i}.weightPerBox`)}</p>
-                )}
-              </div>
-              <div>
-                <label className="label lg:hidden">Method *</label>
-                <select
-                  className="input"
-                  value={l.shippingMethod}
-                  onChange={(e) => setLine(i, { shippingMethod: e.target.value })}
-                >
-                  <option value="">—</option>
-                  <option value="AIR">Air ✈️</option>
-                  <option value="SEA">Sea 🚢</option>
-                </select>
-                {err(`lines.${i}.shippingMethod`) && (
-                  <p className="err">{err(`lines.${i}.shippingMethod`)}</p>
-                )}
-              </div>
-              <div>
-                <label className="label lg:hidden">Carrier *</label>
-                <select
-                  className="input"
-                  value={l.carrier}
-                  onChange={(e) => setLine(i, { carrier: e.target.value })}
-                >
-                  <option value="">—</option>
-                  {CARRIERS.map(([v, lab]) => (
-                    <option key={v} value={v}>
-                      {lab}
-                    </option>
-                  ))}
-                </select>
-                {err(`lines.${i}.carrier`) && <p className="err">{err(`lines.${i}.carrier`)}</p>}
-              </div>
-              <div>
-                <label className="label lg:hidden">Tracking # *</label>
-                <input
-                  className="input"
-                  value={l.trackingNumber}
-                  onChange={(e) => setLine(i, { trackingNumber: e.target.value })}
-                />
-                {err(`lines.${i}.trackingNumber`) && (
-                  <p className="err">{err(`lines.${i}.trackingNumber`)}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2 lg:flex-col lg:gap-1 lg:pt-1.5">
-                <button
-                  type="button"
-                  onClick={() => duplicateLine(i)}
-                  title="Duplicate row"
-                  className="text-xs font-medium text-blue-600 hover:underline"
-                >
-                  Copy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => removeLine(i)}
-                  disabled={lines.length === 1}
-                  title="Remove row"
-                  className="text-xs font-medium text-red-600 hover:underline disabled:opacity-40"
-                >
-                  Remove
-                </button>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="label"># Boxes *</label>
+                  <input
+                    className="input"
+                    type="number"
+                    min={1}
+                    value={l.boxCount}
+                    onChange={(e) => setLine(i, { boxCount: e.target.value })}
+                  />
+                  {err(`lines.${i}.boxCount`) && <p className="err">{err(`lines.${i}.boxCount`)}</p>}
+                </div>
+                <div>
+                  <label className="label">Units / box *</label>
+                  <input
+                    className="input"
+                    type="number"
+                    min={1}
+                    value={l.unitsPerBox}
+                    onChange={(e) => setLine(i, { unitsPerBox: e.target.value })}
+                  />
+                  {err(`lines.${i}.unitsPerBox`) && (
+                    <p className="err">{err(`lines.${i}.unitsPerBox`)}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="label">Weight / box (lbs) *</label>
+                  <input
+                    className="input"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={l.weightPerBox}
+                    onChange={(e) => setLine(i, { weightPerBox: e.target.value })}
+                  />
+                  {err(`lines.${i}.weightPerBox`) && (
+                    <p className="err">{err(`lines.${i}.weightPerBox`)}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="label">Method *</label>
+                  <select
+                    className="input"
+                    value={l.shippingMethod}
+                    onChange={(e) => setLine(i, { shippingMethod: e.target.value })}
+                  >
+                    <option value="">—</option>
+                    <option value="AIR">Air ✈️</option>
+                    <option value="SEA">Sea 🚢</option>
+                  </select>
+                  {err(`lines.${i}.shippingMethod`) && (
+                    <p className="err">{err(`lines.${i}.shippingMethod`)}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="label">Carrier *</label>
+                  <select
+                    className="input"
+                    value={l.carrier}
+                    onChange={(e) => setLine(i, { carrier: e.target.value })}
+                  >
+                    <option value="">—</option>
+                    {CARRIERS.map(([v, lab]) => (
+                      <option key={v} value={v}>
+                        {lab}
+                      </option>
+                    ))}
+                  </select>
+                  {err(`lines.${i}.carrier`) && <p className="err">{err(`lines.${i}.carrier`)}</p>}
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="label">Tracking # *</label>
+                  <input
+                    className="input"
+                    value={l.trackingNumber}
+                    onChange={(e) => setLine(i, { trackingNumber: e.target.value })}
+                  />
+                  {err(`lines.${i}.trackingNumber`) && (
+                    <p className="err">{err(`lines.${i}.trackingNumber`)}</p>
+                  )}
+                </div>
               </div>
             </div>
           ))}

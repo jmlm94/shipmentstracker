@@ -7,12 +7,12 @@ export default function SubmitPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="bg-gradient-to-r from-orange-600 to-orange-500 text-white">
-        <div className="mx-auto flex max-w-4xl items-center gap-2 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3 sm:px-6">
           <span className="text-lg font-bold tracking-tight">📦 {company}</span>
           <span className="text-sm text-orange-100">· Supplier Shipment Intake</span>
         </div>
       </div>
-      <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <header className="mb-8">
           <h1 className="text-2xl font-semibold">Submit a shipment 🚚</h1>
           <p className="mt-2 text-sm text-muted">
