@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BoxStatus } from "@prisma/client";
-import { ALL_STATUSES, STATUS_META } from "@/lib/status";
+import { allowedNextStatuses, STATUS_META } from "@/lib/status";
 
 export function BoxStatusEditor({
   boxId,
@@ -27,6 +27,8 @@ export function BoxStatusEditor({
   const [wr, setWr] = useState(weightReceived?.toString() ?? "");
   const [ur, setUr] = useState(unitsReceived?.toString() ?? "");
   const [cond, setCond] = useState<string>(condition ?? "");
+  const [note, setNote] = useState("");
+  const options = allowedNextStatuses(current);
 
   // Receiving fields are relevant once the box has arrived.
   const receiving = ["DELIVERED", "ADDED_IN_STOCK", "LOST"].includes(status);
@@ -41,6 +43,7 @@ export function BoxStatusEditor({
         weightReceived: wr === "" ? null : Number(wr),
         unitsReceived: ur === "" ? null : Number(ur),
         condition: cond === "" ? null : cond,
+        detail: note.trim() || null,
       }),
     });
     setSaving(false);
@@ -64,15 +67,15 @@ export function BoxStatusEditor({
     <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className="label">Status</label>
+          <label className="label">New status</label>
           <select
             className="input"
             value={status}
             onChange={(e) => setStatus(e.target.value as BoxStatus)}
           >
-            {ALL_STATUSES.map((s) => (
+            {options.map((s) => (
               <option key={s} value={s}>
-                {STATUS_META[s].label}
+                {STATUS_META[s].emoji} {STATUS_META[s].label}
               </option>
             ))}
           </select>
@@ -108,6 +111,15 @@ export function BoxStatusEditor({
             </div>
           </>
         )}
+        <div className="sm:col-span-2">
+          <label className="label">Note (optional)</label>
+          <input
+            className="input"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Add a note about this status change"
+          />
+        </div>
       </div>
       <div className="mt-3 flex gap-2">
         <button className="btn" onClick={save} disabled={saving}>

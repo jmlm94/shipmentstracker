@@ -33,27 +33,55 @@ export default async function OverviewPage() {
   const totalUnits = unitsAgg._sum.unitsPerBox || 0;
   const attentionCount = ATTENTION_STATUSES.reduce((s, st) => s + (counts[st] || 0), 0);
 
-  // Per-supplier box + attention counts for the breakdown table.
+  // Per-supplier metrics for the breakdown table.
   const supplierStats = await Promise.all(
     supplierGroups.map(async (g) => {
       const boxes = await prisma.box.findMany({
         where: { shipment: { supplierName: g.supplierName } },
-        select: { status: true },
+        select: {
+          status: true,
+          deliveredAt: true,
+          shipment: { select: { shipmentDate: true } },
+        },
       });
       const attention = boxes.filter((b) => STATUS_META[b.status].attention).length;
+      const inTransit = boxes.filter(
+        (b) => b.status === "IN_TRANSIT" || b.status === "PENDING"
+      ).length;
       const delivered = boxes.filter(
         (b) => b.status === "DELIVERED" || b.status === "ADDED_IN_STOCK"
       ).length;
+      // Average days from shipment date to delivery, over delivered boxes.
+      const deliveredWithDates = boxes.filter((b) => b.deliveredAt);
+      const avgDays =
+        deliveredWithDates.length > 0
+          ? Math.round(
+              deliveredWithDates.reduce(
+                (s, b) =>
+                  s +
+                  (b.deliveredAt!.getTime() - b.shipment.shipmentDate.getTime()) /
+                    (24 * 60 * 60 * 1000),
+                0
+              ) / deliveredWithDates.length
+            )
+          : null;
+      const lastShipment = boxes.reduce<Date | null>((max, b) => {
+        const d = b.shipment.shipmentDate;
+        return !max || d > max ? d : max;
+      }, null);
       return {
         name: g.supplierName,
-        shipments: g._count._all,
         boxes: boxes.length,
+        inTransit,
         delivered,
         attention,
+        avgDays,
+        lastShipment,
       };
     })
   );
-  supplierStats.sort((a, b) => b.boxes - a.boxes);
+  // Worst performers (most attention) first.
+  supplierStats.sort((a, b) => b.attention - a.attention || b.boxes - a.boxes);
 
   return (
     <div>
@@ -156,51 +184,61 @@ export default async function OverviewPage() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* By supplier */}
-        <section className="card p-5">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-            By supplier
-          </h2>
-          {supplierStats.length === 0 ? (
-            <p className="text-sm text-muted">No shipments yet.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase text-muted">
-                  <th className="pb-2 font-medium">Supplier</th>
-                  <th className="pb-2 text-right font-medium">Boxes</th>
-                  <th className="pb-2 text-right font-medium">Delivered</th>
-                  <th className="pb-2 text-right font-medium">Attention</th>
+      {/* By supplier */}
+      <section className="card mb-6 overflow-x-auto p-5">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+          By supplier
+        </h2>
+        {supplierStats.length === 0 ? (
+          <p className="text-sm text-muted">No shipments yet.</p>
+        ) : (
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase text-muted">
+                <th className="pb-2 font-medium">Supplier</th>
+                <th className="pb-2 text-right font-medium">Total boxes</th>
+                <th className="pb-2 text-right font-medium">In transit</th>
+                <th className="pb-2 text-right font-medium">Delivered</th>
+                <th className="pb-2 text-right font-medium">Attention</th>
+                <th className="pb-2 text-right font-medium">Last shipment</th>
+                <th className="pb-2 text-right font-medium">Avg days</th>
+              </tr>
+            </thead>
+            <tbody>
+              {supplierStats.map((s) => (
+                <tr key={s.name} className="border-t border-slate-100">
+                  <td className="py-2">
+                    <Link
+                      href={`/dashboard/shipments?supplier=${encodeURIComponent(s.name)}`}
+                      className="font-medium hover:underline"
+                    >
+                      {s.name}
+                    </Link>
+                  </td>
+                  <td className="py-2 text-right">{s.boxes}</td>
+                  <td className="py-2 text-right">{s.inTransit}</td>
+                  <td className="py-2 text-right">{s.delivered}</td>
+                  <td className="py-2 text-right">
+                    {s.attention > 0 ? (
+                      <span className="font-semibold text-amber-700">{s.attention}</span>
+                    ) : (
+                      <span className="text-muted">0</span>
+                    )}
+                  </td>
+                  <td className="py-2 text-right text-muted">
+                    {s.lastShipment ? s.lastShipment.toISOString().slice(0, 10) : "—"}
+                  </td>
+                  <td className="py-2 text-right text-muted">
+                    {s.avgDays != null ? `${s.avgDays}d` : "—"}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {supplierStats.map((s) => (
-                  <tr key={s.name} className="border-t border-slate-100">
-                    <td className="py-2">
-                      <Link
-                        href={`/dashboard/shipments?supplier=${encodeURIComponent(s.name)}`}
-                        className="hover:underline"
-                      >
-                        {s.name}
-                      </Link>
-                    </td>
-                    <td className="py-2 text-right">{s.boxes}</td>
-                    <td className="py-2 text-right">{s.delivered}</td>
-                    <td className="py-2 text-right">
-                      {s.attention > 0 ? (
-                        <span className="font-semibold text-amber-700">{s.attention}</span>
-                      ) : (
-                        <span className="text-muted">0</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
 
+      <div className="grid grid-cols-1 gap-6">
         {/* Recent shipments */}
         <section className="card p-5">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">

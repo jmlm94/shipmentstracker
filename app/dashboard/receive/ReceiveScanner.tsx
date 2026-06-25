@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { BoxStatus, Carrier } from "@prisma/client";
-import { ALL_STATUSES, CARRIER_LABEL, STATUS_META } from "@/lib/status";
+import { CARRIER_LABEL, STATUS_META } from "@/lib/status";
 import { QrScanner } from "@/components/QrScanner";
 
 type FoundBox = {
@@ -18,30 +18,30 @@ type FoundBox = {
   weightOfBox: number;
   carrier: Carrier;
   status: BoxStatus;
-  shipment: { supplierName: string; code: string };
+  shipment: { supplierName: string; code: string; poNumber: string | null };
 };
 
 export function ReceiveScanner() {
-  const [tracking, setTracking] = useState("");
+  const [query, setQuery] = useState("");
   const [box, setBox] = useState<FoundBox | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
-  // Update form state
-  const [status, setStatus] = useState<BoxStatus>("ADDED_IN_STOCK");
-  const [wr, setWr] = useState("");
-  const [ur, setUr] = useState("");
-  const [cond, setCond] = useState("GOOD");
+  // Receiving form
+  const [good, setGood] = useState(true);
+  const [units, setUnits] = useState("");
+  const [weight, setWeight] = useState("");
+  const [receivedBy, setReceivedBy] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   async function runLookup(code: string) {
     setError(null);
     setBox(null);
-    setSaved(false);
+    setSavedMsg(null);
     const trimmed = code.trim();
     if (!trimmed) return;
-    setTracking(trimmed);
+    setQuery(trimmed);
     setLoading(true);
     const res = await fetch(`/api/boxes?code=${encodeURIComponent(trimmed)}`);
     setLoading(false);
@@ -52,38 +52,60 @@ export function ReceiveScanner() {
     }
     const b: FoundBox = data.box;
     setBox(b);
-    setStatus("ADDED_IN_STOCK");
-    setWr(b.weightOfBox?.toString() ?? "");
-    setUr(b.unitsPerBox?.toString() ?? "");
-    setCond("GOOD");
+    setGood(true);
+    setUnits(b.unitsPerBox?.toString() ?? "");
+    setWeight(b.weightOfBox?.toString() ?? "");
+    setReceivedBy("");
   }
 
   function lookup(e: React.FormEvent) {
     e.preventDefault();
-    runLookup(tracking);
+    runLookup(query);
   }
 
-  async function save() {
+  async function patch(body: Record<string, unknown>, after: string) {
     if (!box) return;
     setSaving(true);
     const res = await fetch(`/api/boxes/${box.id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        status,
-        weightReceived: wr === "" ? null : Number(wr),
-        unitsReceived: ur === "" ? null : Number(ur),
-        condition: cond === "" ? null : cond,
-      }),
+      body: JSON.stringify(body),
     });
     setSaving(false);
     if (res.ok) {
-      setSaved(true);
-      setBox({ ...box, status });
-      setTracking("");
+      const d = await res.json().catch(() => ({}));
+      setBox({ ...box, status: body.status as BoxStatus });
+      setSavedMsg(
+        d.hasDiscrepancy
+          ? `${after} — ⚠️ discrepancy flagged (received ≠ declared).`
+          : after
+      );
     } else {
       setError("Could not save. Try again.");
     }
+  }
+
+  function receive() {
+    if (!receivedBy.trim()) {
+      setError("Please enter who received this box.");
+      return;
+    }
+    setError(null);
+    patch(
+      {
+        status: "DELIVERED",
+        unitsReceived: units === "" ? null : Number(units),
+        weightReceived: weight === "" ? null : Number(weight),
+        condition: good ? "GOOD" : "LOST_UNITS",
+        receivedBy: receivedBy.trim(),
+        detail: good ? "Received in good condition" : "Received NOT in good condition",
+      },
+      "✅ Marked Delivered."
+    );
+  }
+
+  function addToStock() {
+    patch({ status: "ADDED_IN_STOCK" }, "🏬 Added to Carbinox stock.");
   }
 
   return (
@@ -93,8 +115,8 @@ export function ReceiveScanner() {
         <div className="flex gap-2">
           <input
             className="input"
-            value={tracking}
-            onChange={(e) => setTracking(e.target.value)}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="e.g. SHP-7K3Q9P-001"
             autoFocus
             autoComplete="off"
@@ -109,20 +131,21 @@ export function ReceiveScanner() {
         </div>
       </form>
 
-      {saved && !box?.id && (
+      {savedMsg && (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-          Saved. Scan the next box.
+          {savedMsg}
         </div>
       )}
 
       {box && (
         <div className="card p-4">
+          {/* Summary */}
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-semibold text-orange-700">{box.boxCode}</span>
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_META[box.status].color}`}
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_META[box.status].color}`}
             >
-              {STATUS_META[box.status].label}
+              {STATUS_META[box.status].emoji} {STATUS_META[box.status].label}
             </span>
           </div>
           <div className="mt-1 flex items-center gap-2 font-medium">
@@ -136,59 +159,86 @@ export function ReceiveScanner() {
             </span>
           </div>
           <div className="mt-1 text-sm text-muted">
-            {box.shipment.supplierName} · {box.shipment.code} · {CARRIER_LABEL[box.carrier]} ·{" "}
-            {box.unitsPerBox} units · declared {box.weightOfBox} lbs
+            {box.shipment.supplierName} · {box.shipment.code}
+            {box.shipment.poNumber ? ` · ${box.shipment.poNumber}` : ""} · {CARRIER_LABEL[box.carrier]}
+            <br />
+            Expected: {box.unitsPerBox} units · {box.weightOfBox} lbs
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="label">Set status</label>
-              <select
-                className="input"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as BoxStatus)}
+          {/* Step: condition check */}
+          {box.status !== "ADDED_IN_STOCK" && (
+            <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+              <div>
+                <label className="label">Was this box received in good condition?</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGood(true)}
+                    className={`rounded-lg border px-4 py-1.5 text-sm font-medium ${good ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-slate-300 text-slate-600"}`}
+                  >
+                    👍 Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGood(false)}
+                    className={`rounded-lg border px-4 py-1.5 text-sm font-medium ${!good ? "border-red-300 bg-red-50 text-red-700" : "border-slate-300 text-slate-600"}`}
+                  >
+                    👎 No (damaged / missing)
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="label">Units inside</label>
+                  <input
+                    className="input"
+                    type="number"
+                    value={units}
+                    onChange={(e) => setUnits(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="label">Weight (lbs)</label>
+                  <input
+                    className="input"
+                    type="number"
+                    step="0.01"
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="label">Received by *</label>
+                  <input
+                    className="input"
+                    value={receivedBy}
+                    onChange={(e) => setReceivedBy(e.target.value)}
+                    placeholder="Name or initials"
+                  />
+                </div>
+              </div>
+              <button className="btn" onClick={receive} disabled={saving}>
+                {saving ? "Saving…" : "📥 Mark received (Delivered)"}
+              </button>
+            </div>
+          )}
+
+          {/* Step: add to stock (separate, after delivered) */}
+          {(box.status === "DELIVERED" || box.status === "DAMAGED") && (
+            <div className="mt-4 border-t border-slate-100 pt-4">
+              <button
+                className="btn bg-green-700 hover:bg-green-800"
+                onClick={addToStock}
+                disabled={saving}
               >
-                {ALL_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_META[s].label}
-                  </option>
-                ))}
-              </select>
+                ✅ Added to Carbinox stock
+              </button>
             </div>
-            <div>
-              <label className="label">Weight received (lbs)</label>
-              <input
-                className="input"
-                type="number"
-                step="0.01"
-                value={wr}
-                onChange={(e) => setWr(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="label">Units received</label>
-              <input
-                className="input"
-                type="number"
-                value={ur}
-                onChange={(e) => setUr(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="label">Condition</label>
-              <select className="input" value={cond} onChange={(e) => setCond(e.target.value)}>
-                <option value="GOOD">Good</option>
-                <option value="LOST_UNITS">Lost units</option>
-              </select>
-            </div>
-          </div>
+          )}
 
-          <div className="mt-4 flex items-center gap-3">
-            <button className="btn" onClick={save} disabled={saving}>
-              {saving ? "Saving…" : "Save & next"}
-            </button>
+          <div className="mt-4">
             <Link href={`/dashboard`} className="text-sm text-muted hover:text-ink">
-              View all shipments
+              Back to dashboard
             </Link>
           </div>
         </div>

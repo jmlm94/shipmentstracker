@@ -18,6 +18,7 @@ const schema = z.object({
   weightReceived: z.coerce.number().positive().optional().nullable(),
   unitsReceived: z.coerce.number().int().nonnegative().optional().nullable(),
   condition: z.enum(["GOOD", "LOST_UNITS"]).optional().nullable(),
+  receivedBy: z.string().trim().max(120).optional().nullable(),
   detail: z.string().trim().max(500).optional().nullable(),
 });
 
@@ -39,12 +40,13 @@ export async function PATCH(
   });
   if (!box) return NextResponse.json({ error: "Box not found" }, { status: 404 });
 
-  const { status, weightReceived, unitsReceived, condition, detail } = parsed.data;
+  const { status, weightReceived, unitsReceived, condition, receivedBy, detail } = parsed.data;
 
   const extra: Prisma.BoxUpdateInput = {};
   if (weightReceived !== undefined) extra.weightReceived = weightReceived;
   if (unitsReceived !== undefined) extra.unitsReceived = unitsReceived;
   if (condition !== undefined) extra.condition = condition;
+  if (receivedBy !== undefined) extra.receivedBy = receivedBy;
 
   // Flag a discrepancy when received units differ from declared, weight is off
   // by more than 5%, or staff marked lost units / damaged.

@@ -15,7 +15,7 @@ export async function GET(req: Request) {
 
   const box = await prisma.box.findFirst({
     where: { OR: [{ boxCode: code }, { trackingNumber: code }] },
-    include: { shipment: { select: { supplierName: true, code: true } } },
+    include: { shipment: { select: { supplierName: true, code: true, poNumber: true } } },
   });
 
   if (!box) {

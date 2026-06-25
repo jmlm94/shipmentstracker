@@ -45,6 +45,22 @@ export const ATTENTION_STATUSES: BoxStatus[] = ALL_STATUSES.filter(
   (s) => STATUS_META[s].attention
 );
 
+// Logical next statuses from the current one. Any status can also go to
+// Damaged or Lost. Used to keep the status dropdown sensible.
+export function allowedNextStatuses(current: BoxStatus): BoxStatus[] {
+  const fwd: Record<BoxStatus, BoxStatus[]> = {
+    PENDING: ["IN_TRANSIT"],
+    IN_TRANSIT: ["DELAYED", "DELIVERED"],
+    DELAYED: ["IN_TRANSIT", "DELIVERED"],
+    DELIVERED: ["ADDED_IN_STOCK"],
+    ADDED_IN_STOCK: [],
+    DAMAGED: ["ADDED_IN_STOCK"],
+    LOST: ["IN_TRANSIT", "DELIVERED"],
+  };
+  const set = new Set<BoxStatus>([current, ...fwd[current], "DAMAGED", "LOST"]);
+  return ALL_STATUSES.filter((s) => set.has(s));
+}
+
 // Maps a raw carrier tracking status string onto our BoxStatus enum.
 export function carrierStatusToBoxStatus(raw: string): BoxStatus | null {
   const s = raw.toLowerCase();
