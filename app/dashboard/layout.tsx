@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { authDisabled, isAuthed } from "@/lib/auth";
-import { Logo } from "@/components/Logo";
+import { DashboardNav } from "@/components/DashboardNav";
 
 export default function DashboardLayout({
   children,
@@ -11,49 +10,13 @@ export default function DashboardLayout({
   if (!isAuthed()) redirect("/login?next=/dashboard");
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-orange-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <Link href="/dashboard" className="flex items-center gap-2 font-bold text-orange-600">
-              <Logo className="h-7 w-7" />
-              Carbinox Tracker
-            </Link>
-            <nav className="flex items-center gap-x-4 text-sm text-muted">
-              <Link href="/dashboard" className="hover:text-ink">
-                📊 Overview
-              </Link>
-              <Link href="/dashboard/orders" className="hover:text-ink">
-                🧾 Orders
-              </Link>
-              <Link href="/dashboard/shipments" className="hover:text-ink">
-                🚚 Shipments
-              </Link>
-              <Link href="/dashboard/receive" className="hover:text-ink">
-                📥 Receive
-              </Link>
-              <Link href="/dashboard/expected" className="hover:text-ink">
-                ⏳ Expected
-              </Link>
-              <Link href="/dashboard/products" className="hover:text-ink">
-                🛍️ Products
-              </Link>
-              <Link href="/dashboard/form" className="hover:text-ink">
-                📝 Smart form
-              </Link>
-              <Link href="/dashboard/export" className="hover:text-ink">
-                ⬇️ Export
-              </Link>
-            </nav>
-          </div>
-          {!authDisabled() && (
-            <form action="/api/auth/logout" method="POST">
-              <button className="text-sm text-muted hover:text-ink">Sign out</button>
-            </form>
-          )}
+    <div className="min-h-screen lg:grid lg:grid-cols-[248px_1fr]">
+      <DashboardNav authDisabled={authDisabled()} />
+      <main className="min-w-0">
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
+          <div className="animate-fade-in-up">{children}</div>
         </div>
-      </header>
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</div>
+      </main>
     </div>
   );
 }

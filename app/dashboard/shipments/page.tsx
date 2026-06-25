@@ -205,7 +205,7 @@ export default async function ShipmentsPage({
             <Link
               key={shipment.id}
               href={`/dashboard/${shipment.id}`}
-              className="card block p-5 transition hover:border-slate-400"
+              className="card block p-5 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-card-hover"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>

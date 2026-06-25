@@ -207,10 +207,15 @@ export default async function OverviewPage() {
           <Link
             key={s}
             href={`/dashboard/shipments?status=${s}`}
-            className="card px-3 py-4 text-left transition hover:border-slate-400"
+            className="card group px-4 py-4 text-left hover:-translate-y-0.5 hover:shadow-card-hover"
           >
-            <div className="text-2xl font-semibold">{counts[s] || 0}</div>
-            <div className="mt-1 flex items-center gap-1.5 text-xs text-muted">
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold tracking-tight">{counts[s] || 0}</span>
+              <span className="text-lg opacity-80 transition group-hover:scale-110">
+                {STATUS_META[s].emoji}
+              </span>
+            </div>
+            <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-muted">
               <span className={`h-1.5 w-1.5 rounded-full ${STATUS_META[s].dot}`} />
               {STATUS_META[s].label}
             </div>

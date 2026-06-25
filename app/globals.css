@@ -7,12 +7,19 @@
 }
 
 body {
-  @apply bg-slate-50 text-ink antialiased;
+  @apply text-ink antialiased;
+  background-color: #f8fafc;
+  background-image:
+    radial-gradient(at 0% 0%, rgb(255 237 213 / 0.5) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgb(241 245 249 / 0.6) 0px, transparent 45%);
+  background-attachment: fixed;
 }
 
 .input {
   @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm
-    outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10
+    text-ink shadow-sm outline-none transition
+    placeholder:text-slate-400
+    focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20
     disabled:bg-slate-100;
 }
 
@@ -21,14 +28,16 @@ body {
 }
 
 .btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2
-    text-sm font-medium text-white transition hover:bg-slate-700
-    disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2
+    text-sm font-semibold text-white shadow-brand transition
+    hover:bg-brand-700 hover:shadow-card-hover active:translate-y-px
+    disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none;
 }
 
 .btn-secondary {
   @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300
-    bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50;
+    bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition
+    hover:border-slate-400 hover:bg-slate-50 active:translate-y-px;
 }
 
 .err {
@@ -36,5 +45,14 @@ body {
 }
 
 .card {
-  @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  @apply rounded-2xl border border-slate-200/80 bg-white shadow-card transition;
+}
+
+/* Sidebar nav item */
+.nav-item {
+  @apply flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-600
+    transition hover:bg-slate-100 hover:text-ink;
+}
+.nav-item-active {
+  @apply bg-brand-50 text-brand-700 shadow-sm hover:bg-brand-50 hover:text-brand-700;
 }
