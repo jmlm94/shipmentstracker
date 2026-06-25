@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ALL_STATUSES, ATTENTION_STATUSES, STATUS_META } from "@/lib/status";
 import { StatusBadge } from "@/components/StatusBadge";
+import { RefreshTrackingButton } from "@/components/RefreshTrackingButton";
+import { etaFor, daysUntil, daysSince, TERMINAL_STATUSES } from "@/lib/eta";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,34 @@ export default async function OverviewPage() {
     take: 5,
     include: { items: true },
   });
+
+  const now = new Date();
+  const latestSync = await prisma.syncRun.findFirst({ orderBy: { startedAt: "desc" } });
+  const syncStale = latestSync
+    ? daysSince(latestSync.startedAt, now) >= 1 ||
+      now.getTime() - latestSync.startedAt.getTime() > 26 * 60 * 60 * 1000
+    : true;
+
+  // Overdue shipments (past ETA with non-terminal boxes) — for the Alerts banner.
+  const inTransit = await prisma.shipment.findMany({
+    where: { boxes: { some: { status: { notIn: TERMINAL_STATUSES } } } },
+    include: { lines: { select: { shippingMethod: true } }, boxes: { select: { status: true } } },
+  });
+  const overdueShipments = inTransit
+    .map((s) => {
+      const eta = s.lines.length
+        ? new Date(
+            Math.min(
+              ...s.lines.map((l) =>
+                etaFor(s.shipmentDate, l.shippingMethod, s.expectedDeliveryDate).getTime()
+              )
+            )
+          )
+        : etaFor(s.shipmentDate, "AIR", s.expectedDeliveryDate);
+      return { s, remaining: daysUntil(eta, now) };
+    })
+    .filter((x) => x.remaining <= 0)
+    .sort((a, b) => a.remaining - b.remaining);
 
   const counts = Object.fromEntries(grouped.map((g) => [g.status, g._count._all]));
   const totalBoxes = grouped.reduce((s, g) => s + g._count._all, 0);
@@ -91,11 +121,45 @@ export default async function OverviewPage() {
           <p className="mt-1 text-sm text-muted">
             {shipmentCount} shipments · {totalBoxes} boxes · {totalUnits} units
           </p>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+            <span className={syncStale ? "font-medium text-amber-600" : "text-muted"}>
+              🔄 Tracking last refreshed:{" "}
+              {latestSync
+                ? `${latestSync.startedAt.toISOString().slice(0, 16).replace("T", " ")} UTC`
+                : "never"}
+              {syncStale ? " (may be stale)" : ""}
+            </span>
+            <RefreshTrackingButton />
+          </p>
         </div>
         <Link href="/dashboard/shipments" className="btn-secondary">
           View all shipments →
         </Link>
       </div>
+
+      {/* Overdue alerts */}
+      {overdueShipments.length > 0 && (
+        <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4">
+          <div className="mb-2 font-semibold text-red-900">
+            🚨 {overdueShipments.length} overdue shipment{overdueShipments.length === 1 ? "" : "s"}
+          </div>
+          <div className="space-y-1">
+            {overdueShipments.slice(0, 6).map(({ s, remaining }) => (
+              <Link
+                key={s.id}
+                href={`/dashboard/${s.id}`}
+                className="flex items-center justify-between rounded-lg bg-white/60 px-3 py-1.5 text-sm hover:bg-white"
+              >
+                <span className="font-medium text-red-900">
+                  {s.supplierName} · {s.code}
+                  {s.poNumber ? ` · ${s.poNumber}` : ""}
+                </span>
+                <span className="text-xs font-semibold text-red-700">{Math.abs(remaining)}d overdue</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Needs attention banner */}
       {(attentionCount > 0 || discrepancyCount > 0) && (

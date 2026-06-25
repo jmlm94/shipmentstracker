@@ -75,6 +75,13 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
                 manually added
               </span>
             )}
+            {eta &&
+              now > eta &&
+              allBoxes.some((b) => !["DELIVERED", "ADDED_IN_STOCK", "LOST", "DAMAGED"].includes(b.status)) && (
+                <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
+                  🚨 OVERDUE
+                </span>
+              )}
           </div>
           <p className="mt-1 text-sm text-muted">
             📅 Shipped {shipment.shipmentDate.toISOString().slice(0, 10)}
