@@ -79,7 +79,7 @@ export function ProductCombobox({
             <span className="shrink-0 text-xs font-medium text-blue-600">Change</span>
           </>
         ) : (
-          <span className="flex-1 py-0.5 text-sm text-slate-400">🔍 Tap to choose a product…</span>
+          <span className="flex-1 py-0.5 text-sm text-slate-400">🔍 Search for a product…</span>
         )}
       </button>
 

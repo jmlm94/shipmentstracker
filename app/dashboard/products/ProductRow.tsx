@@ -15,28 +15,35 @@ export function ProductRow({
   image: string;
 }) {
   const router = useRouter();
+  const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name);
-  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [busy, setBusy] = useState(false);
 
   async function save() {
     const trimmed = value.trim();
     if (!trimmed || trimmed === name) {
-      setState("idle");
+      setEditing(false);
+      setValue(name);
       return;
     }
-    setState("saving");
+    setBusy(true);
     const res = await fetch(`/api/products/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: trimmed }),
     });
+    setBusy(false);
     if (res.ok) {
-      setState("saved");
+      setEditing(false);
       router.refresh();
-      setTimeout(() => setState("idle"), 1500);
     } else {
-      setState("error");
+      alert("Could not save. Try again.");
     }
+  }
+
+  function cancel() {
+    setValue(name);
+    setEditing(false);
   }
 
   async function remove() {
@@ -55,27 +62,51 @@ export function ProductRow({
           —
         </div>
       )}
+
       <div className="min-w-0 flex-1">
-        <input
-          className="input py-1.5 text-sm"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={save}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-          }}
-        />
-        {sku && <div className="mt-0.5 truncate text-[11px] text-muted">{sku}</div>}
-      </div>
-      <div className="flex w-16 shrink-0 items-center justify-end gap-2 text-xs">
-        {state === "saving" && <span className="text-muted">…</span>}
-        {state === "saved" && <span className="text-emerald-600">✓ Saved</span>}
-        {state === "error" && <span className="text-red-600">error</span>}
-        {state === "idle" && (
-          <button onClick={remove} className="text-red-500 hover:underline" title="Remove">
-            ✕
-          </button>
+        {editing ? (
+          <div className="flex items-center gap-1.5">
+            <input
+              autoFocus
+              className="input py-1.5 text-sm"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") save();
+                if (e.key === "Escape") cancel();
+              }}
+            />
+            <button
+              onClick={save}
+              disabled={busy}
+              className="shrink-0 rounded bg-orange-600 px-2 py-1 text-xs font-medium text-white hover:bg-orange-700 disabled:opacity-50"
+            >
+              Save
+            </button>
+            <button onClick={cancel} className="shrink-0 px-1.5 py-1 text-xs text-muted hover:text-ink">
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="min-w-0 flex-1 truncate text-sm">{name}</span>
+            <button
+              onClick={() => setEditing(true)}
+              title="Edit name"
+              className="shrink-0 text-slate-400 hover:text-orange-600"
+            >
+              ✏️
+            </button>
+            <button
+              onClick={remove}
+              title="Remove"
+              className="shrink-0 text-slate-300 hover:text-red-500"
+            >
+              ✕
+            </button>
+          </div>
         )}
+        {sku && !editing && <div className="truncate text-[11px] text-muted">{sku}</div>}
       </div>
     </div>
   );

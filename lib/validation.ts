@@ -52,12 +52,20 @@ export const lineSchema = z.object({
 
 export const shipmentSchema = z.object({
   supplierName: z.string().trim().min(1, "Supplier name is required"),
+  poNumber: z.string().trim().min(1, "PO number is required").max(80),
   supplierEmail: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),
   shipmentDate: z
     .string()
     .min(1, "Shipment date is required")
     .refine((v) => !Number.isNaN(Date.parse(v)), "Invalid date"),
+  expectedDeliveryDate: z
+    .string()
+    .refine((v) => !Number.isNaN(Date.parse(v)), "Invalid date")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
+  manuallyAdded: z.boolean().optional(),
   lines: z.array(lineSchema).min(1, "Add at least one product line"),
 });
 

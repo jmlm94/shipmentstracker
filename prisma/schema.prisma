@@ -16,15 +16,18 @@ datasource db {
 // once. The supplier then adds one ShipmentLine per SKU; each line is expanded
 // into individual Box rows (one per physical box) so every box is tracked.
 model Shipment {
-  id              String   @id @default(cuid())
-  code            String   @unique          // human-friendly batch code, e.g. SHP-7K3Q9P
-  supplierName    String
-  supplierEmail   String?
-  shipmentDate    DateTime
-  notes           String?
-  boxesTotal      Int
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  code                 String   @unique          // human-friendly batch code, e.g. SHP-7K3Q9P
+  poNumber             String?                   // Purchase Order number
+  supplierName         String
+  supplierEmail        String?
+  shipmentDate         DateTime
+  expectedDeliveryDate DateTime?                 // supplier-provided ETA (else computed from lead time)
+  notes                String?
+  boxesTotal           Int
+  manuallyAdded        Boolean  @default(false)  // created from the dashboard vs the supplier form
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   lines           ShipmentLine[]
   boxes           Box[]
@@ -89,7 +92,11 @@ model Box {
   weightReceived  Float?
   condition       BoxCondition?  // GOOD or LOST_UNITS
   unitsReceived   Int?
+  receivedBy      String?
   deliveredAt     DateTime?
+
+  // Set when an overdue Slack alert has been sent (prevents duplicate alerts).
+  overdueNotifiedAt  DateTime?
 
   // Set when received quantity/weight doesn't match what the supplier declared.
   hasDiscrepancy  Boolean    @default(false)
@@ -229,5 +236,20 @@ enum ExpectedStatus {
   ARRIVED
   CANCELLED
 
+  @@schema("shipments")
+}
+
+// Record of each daily carrier-tracking refresh (for the "last refreshed"
+// indicator and sync history).
+model SyncRun {
+  id            String   @id @default(cuid())
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+  boxesChecked  Int      @default(0)
+  statusChanges Int      @default(0)
+  ok            Boolean  @default(true)
+  trigger       String   @default("cron") // "cron" | "manual"
+
+  @@index([startedAt])
   @@schema("shipments")
 }

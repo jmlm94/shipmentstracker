@@ -36,8 +36,8 @@ export default async function ProductsPage() {
       </div>
 
       <div className="mb-3 text-sm text-muted">
-        {products.length} products · tap a name to edit, then click away (or press
-        Enter) to save. ✏️
+        {products.length} products · click the ✏️ to rename one (changes show on the
+        supplier form too).
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">

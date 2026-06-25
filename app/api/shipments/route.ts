@@ -43,11 +43,16 @@ export async function POST(req: Request) {
     const created = await tx.shipment.create({
       data: {
         code,
+        poNumber: data.poNumber,
         supplierName: data.supplierName,
         supplierEmail: data.supplierEmail || null,
         shipmentDate: new Date(data.shipmentDate),
+        expectedDeliveryDate: data.expectedDeliveryDate
+          ? new Date(data.expectedDeliveryDate)
+          : null,
         boxesTotal: totalBoxes,
         notes: data.notes || null,
+        manuallyAdded: data.manuallyAdded ?? false,
       },
     });
 

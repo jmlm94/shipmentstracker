@@ -3,6 +3,7 @@ import { BoxStatus, Carrier, Prisma, ShippingMethod } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ALL_CARRIERS, ALL_STATUSES, CARRIER_LABEL, METHOD_LABEL, STATUS_META } from "@/lib/status";
 import { StatusBadge } from "@/components/StatusBadge";
+import { daysSince } from "@/lib/eta";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function ShipmentsPage({
     method?: string;
     q?: string;
     discrepancy?: string;
+    deleted?: string;
   };
 }) {
   const statuses = (searchParams.status || "")
@@ -49,6 +51,7 @@ export default async function ShipmentsPage({
   if (q) {
     shipmentWhere.OR = [
       { code: { contains: q, mode: "insensitive" } },
+      { poNumber: { contains: q, mode: "insensitive" } },
       { supplierName: { contains: q, mode: "insensitive" } },
       {
         boxes: {
@@ -84,12 +87,23 @@ export default async function ShipmentsPage({
 
   const totalBoxes = shipments.reduce((s, sh) => s + sh.boxes.length, 0);
   const anyFilter = statuses.length || carrier || method || supplier || q || discrepancy;
+  const now = new Date();
 
   return (
     <div>
+      {searchParams.deleted && (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          ✅ Shipment {searchParams.deleted} has been deleted.
+        </div>
+      )}
       <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-semibold">Shipments</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold">Shipments</h1>
+            <Link href="/dashboard/shipments/new" className="btn">
+              ＋ Add shipment
+            </Link>
+          </div>
           <p className="mt-1 text-sm text-muted">
             {shipments.length} shipments · {totalBoxes} boxes
             {hasBoxFilter ? " matching" : ""}
@@ -110,7 +124,7 @@ export default async function ShipmentsPage({
             className="input"
             name="q"
             defaultValue={q}
-            placeholder="Tracking number, SKU or product…"
+            placeholder="Code, PO #, supplier, tracking, SKU…"
           />
         </div>
         <div>
@@ -195,11 +209,24 @@ export default async function ShipmentsPage({
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(() => {
+                      const overdueTransit = shipment.boxes.some(
+                        (b) =>
+                          (b.status === "IN_TRANSIT" || b.status === "DELAYED") &&
+                          daysSince(shipment.shipmentDate, now) >= 30
+                      );
+                      return overdueTransit ? <span title="30+ days in transit">⚠️</span> : null;
+                    })()}
                     <span className="font-medium">{shipment.supplierName}</span>
                     <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">
                       {shipment.code}
                     </span>
+                    {shipment.poNumber && (
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500">
+                        {shipment.poNumber}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-0.5 text-sm text-muted">
                     {carriers.join(", ") || "—"} · {methods.join(", ") || "—"} · shipped{" "}

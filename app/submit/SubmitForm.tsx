@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProductCombobox } from "@/components/ProductCombobox";
 import type { CatalogProduct } from "@/lib/catalog";
+
+const KG_TO_LBS = 2.20462;
 
 type Line = {
   productId: string;
@@ -99,23 +101,44 @@ function PerBoxTracking({
   );
 }
 
-export function SubmitForm() {
+export function SubmitForm({ internal = false }: { internal?: boolean }) {
   const router = useRouter();
 
   const [supplierName, setSupplierName] = useState("");
+  const [poNumber, setPoNumber] = useState("");
   const [supplierEmail, setSupplierEmail] = useState("");
   const [shipmentDate, setShipmentDate] = useState("");
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [weightUnit, setWeightUnit] = useState<"kg" | "lbs">("kg");
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
 
+  // Default the shipment date to today — most submissions are on the ship day.
+  useEffect(() => {
+    const now = new Date();
+    const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+      now.getDate()
+    ).padStart(2, "0")}`;
+    setShipmentDate((d) => d || iso);
+  }, []);
+
   const err = (k: string) => errors[k];
+  function clearErr(k: string) {
+    setErrors((e) => {
+      if (!e[k]) return e;
+      const next = { ...e };
+      delete next[k];
+      return next;
+    });
+  }
 
   function setLine(i: number, patch: Partial<Line>) {
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+    Object.keys(patch).forEach((f) => clearErr(`lines.${i}.${f}`));
   }
   function selectProduct(i: number, p: CatalogProduct) {
     setLine(i, {
@@ -135,6 +158,7 @@ export function SubmitForm() {
         return { ...l, boxTracking: arr };
       })
     );
+    clearErr(`lines.${i}.boxTracking.${k}`);
   }
   function addLine() {
     setLines((p) => [...p, emptyLine()]);
@@ -166,17 +190,68 @@ export function SubmitForm() {
     return { boxes, units };
   }, [lines]);
 
+  // Client-side validation with specific, inline messages.
+  function validate(): Record<string, string> {
+    const e: Record<string, string> = {};
+    if (!supplierName.trim()) e.supplierName = "Supplier name is required";
+    if (!poNumber.trim()) e.poNumber = "PO number is required";
+    if (!supplierEmail.trim()) e.supplierEmail = "Email is required";
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(supplierEmail.trim()))
+      e.supplierEmail = "Please enter a valid email";
+    if (!shipmentDate) e.shipmentDate = "Shipment date is required";
+
+    lines.forEach((l, i) => {
+      if (!l.productId) e[`lines.${i}.productId`] = "Pick a product";
+      if (!l.boxCount || Number(l.boxCount) < 1) e[`lines.${i}.boxCount`] = "Must be at least 1";
+      if (!l.unitsPerBox || Number(l.unitsPerBox) < 1)
+        e[`lines.${i}.unitsPerBox`] = "Must be at least 1";
+      if (!l.weightPerBox || Number(l.weightPerBox) <= 0)
+        e[`lines.${i}.weightPerBox`] = "Must be more than 0";
+      if (!l.shippingMethod) e[`lines.${i}.shippingMethod`] = "Pick Air or Sea";
+      if (!l.carrier) e[`lines.${i}.carrier`] = "Select a carrier";
+      if (l.trackingMode === "PER_BOX") {
+        const n = Number(l.boxCount) || 0;
+        for (let k = 0; k < n; k++) {
+          if (!(l.boxTracking?.[k] || "").trim())
+            e[`lines.${i}.boxTracking.${k}`] = "Tracking # required";
+        }
+      } else if (!l.trackingNumber.trim()) {
+        e[`lines.${i}.trackingNumber`] = "Tracking number is required";
+      }
+    });
+    return e;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBanner(null);
+
+    const clientErrors = validate();
+    if (Object.keys(clientErrors).length > 0) {
+      setErrors(clientErrors);
+      const n = Object.keys(clientErrors).length;
+      setBanner(`${n} field${n === 1 ? "" : "s"} need your attention. 👇`);
+      setTimeout(() => {
+        document.querySelector(".err")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 0);
+      return;
+    }
+
     setErrors({});
     setSubmitting(true);
 
+    // Weights are entered in the supplier's chosen unit; store in lbs.
+    const toLbs = (v: string) =>
+      weightUnit === "kg" ? (Number(v) * KG_TO_LBS).toFixed(2) : v;
+
     const payload = {
       supplierName,
+      poNumber,
       supplierEmail,
       shipmentDate,
+      expectedDeliveryDate: expectedDeliveryDate || null,
       notes,
+      manuallyAdded: internal,
       lines: lines.map((l) => ({
         productId: l.productId,
         productName: l.productName,
@@ -184,7 +259,7 @@ export function SubmitForm() {
         productImage: l.productImage,
         boxCount: l.boxCount,
         unitsPerBox: l.unitsPerBox,
-        weightPerBox: l.weightPerBox,
+        weightPerBox: toLbs(l.weightPerBox),
         shippingMethod: l.shippingMethod,
         carrier: l.carrier,
         trackingMode: l.trackingMode,
@@ -202,9 +277,13 @@ export function SubmitForm() {
 
     if (res.ok) {
       const data = await res.json();
-      router.push(
-        `/submit/success?boxes=${data.boxes}&code=${encodeURIComponent(data.code)}&id=${data.id}`
-      );
+      if (internal) {
+        router.push(`/dashboard/${data.id}`);
+      } else {
+        router.push(
+          `/submit/success?boxes=${data.boxes}&code=${encodeURIComponent(data.code)}&id=${data.id}`
+        );
+      }
       return;
     }
     const data = await res.json().catch(() => ({}));
@@ -235,10 +314,26 @@ export function SubmitForm() {
             <input
               className="input"
               value={supplierName}
-              onChange={(e) => setSupplierName(e.target.value)}
+              onChange={(e) => {
+                setSupplierName(e.target.value);
+                clearErr("supplierName");
+              }}
               placeholder="e.g. Shenzhen Watch Co."
             />
             {err("supplierName") && <p className="err">{err("supplierName")}</p>}
+          </div>
+          <div>
+            <label className="label">PO Number *</label>
+            <input
+              className="input"
+              value={poNumber}
+              onChange={(e) => {
+                setPoNumber(e.target.value);
+                clearErr("poNumber");
+              }}
+              placeholder="e.g. PO-2026-0041"
+            />
+            {err("poNumber") && <p className="err">{err("poNumber")}</p>}
           </div>
           <div>
             <label className="label">Email address *</label>
@@ -246,7 +341,10 @@ export function SubmitForm() {
               className="input"
               type="email"
               value={supplierEmail}
-              onChange={(e) => setSupplierEmail(e.target.value)}
+              onChange={(e) => {
+                setSupplierEmail(e.target.value);
+                clearErr("supplierEmail");
+              }}
               placeholder="you@supplier.com"
             />
             {err("supplierEmail") && <p className="err">{err("supplierEmail")}</p>}
@@ -257,9 +355,24 @@ export function SubmitForm() {
               className="input"
               type="date"
               value={shipmentDate}
-              onChange={(e) => setShipmentDate(e.target.value)}
+              onChange={(e) => {
+                setShipmentDate(e.target.value);
+                clearErr("shipmentDate");
+              }}
             />
             {err("shipmentDate") && <p className="err">{err("shipmentDate")}</p>}
+          </div>
+          <div>
+            <label className="label">Expected delivery date</label>
+            <input
+              className="input"
+              type="date"
+              value={expectedDeliveryDate}
+              onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+            />
+            <p className="mt-1 text-[11px] text-muted">
+              Optional — if blank, we estimate 45 days (Air) / 60 days (Sea).
+            </p>
           </div>
           <div>
             <label className="label">Notes</label>
@@ -279,8 +392,8 @@ export function SubmitForm() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
             🧾 Products in this shipment
           </h2>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted">Apply to all:</span>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-muted">Set all lines:</span>
             <select
               className="rounded border border-slate-300 px-1.5 py-1"
               onChange={(e) => e.target.value && applyToAll("shippingMethod", e.target.value)}
@@ -302,6 +415,20 @@ export function SubmitForm() {
                 </option>
               ))}
             </select>
+            <span className="ml-2 inline-flex overflow-hidden rounded border border-slate-300">
+              {(["kg", "lbs"] as const).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => setWeightUnit(u)}
+                  className={`px-2 py-1 ${
+                    weightUnit === u ? "bg-orange-600 text-white" : "bg-white text-slate-600"
+                  }`}
+                >
+                  {u}
+                </button>
+              ))}
+            </span>
           </div>
         </div>
 
@@ -377,7 +504,7 @@ export function SubmitForm() {
                   )}
                 </div>
                 <div>
-                  <label className="label">Weight / box (lbs) *</label>
+                  <label className="label">Weight / box ({weightUnit}) *</label>
                   <input
                     className="input"
                     type="number"

@@ -6,8 +6,16 @@ import { BoxStatusEditor } from "@/components/BoxStatusEditor";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { DeleteShipmentButton } from "@/components/DeleteShipmentButton";
 import { CARRIER_LABEL, METHOD_LABEL } from "@/lib/status";
+import { trackingUrl } from "@/lib/trackingLinks";
+import { daysSince, etaFor, transitSeverity } from "@/lib/eta";
 
 export const dynamic = "force-dynamic";
+
+const SEV_CLASS = {
+  green: "bg-emerald-100 text-emerald-700",
+  amber: "bg-amber-100 text-amber-800",
+  red: "bg-red-100 text-red-700",
+};
 
 export default async function ShipmentDetail({ params }: { params: { id: string } }) {
   const shipment = await prisma.shipment.findUnique({
@@ -32,6 +40,17 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
 
   const allBoxes = shipment.lines.flatMap((l) => l.boxes);
   const totalUnits = allBoxes.reduce((s, b) => s + b.unitsPerBox, 0);
+  const now = new Date();
+  // ETA is supplier-provided, else the earliest computed lead time across lines.
+  const eta = shipment.lines.length
+    ? new Date(
+        Math.min(
+          ...shipment.lines.map((l) =>
+            etaFor(shipment.shipmentDate, l.shippingMethod, shipment.expectedDeliveryDate).getTime()
+          )
+        )
+      )
+    : null;
 
   return (
     <div>
@@ -46,9 +65,20 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
             <span className="rounded-md bg-orange-100 px-2 py-1 font-mono text-sm font-semibold text-orange-800">
               {shipment.code}
             </span>
+            {shipment.poNumber && (
+              <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-sm text-slate-700">
+                {shipment.poNumber}
+              </span>
+            )}
+            {shipment.manuallyAdded && (
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                manually added
+              </span>
+            )}
           </div>
           <p className="mt-1 text-sm text-muted">
-            📅 {shipment.shipmentDate.toISOString().slice(0, 10)} · 📦 {allBoxes.length} boxes ·{" "}
+            📅 Shipped {shipment.shipmentDate.toISOString().slice(0, 10)}
+            {eta ? ` · 🎯 ETA ${eta.toISOString().slice(0, 10)}` : ""} · 📦 {allBoxes.length} boxes ·{" "}
             {totalUnits} units
             {shipment.supplierEmail ? ` · ✉️ ${shipment.supplierEmail}` : ""}
           </p>
@@ -129,10 +159,47 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
                         </div>
                         <div className="mt-1 grid grid-cols-2 gap-x-6 gap-y-0.5 text-sm text-muted sm:grid-cols-3">
                           <span className="col-span-2 sm:col-span-3">
-                            🔖 <span className="font-mono text-ink">{box.trackingNumber}</span>
+                            {box.trackingNumber ? (
+                              (() => {
+                                const url = trackingUrl(box.carrier, box.trackingNumber);
+                                const label = `🔖 ${CARRIER_LABEL[box.carrier]} · ${box.trackingNumber}`;
+                                return url ? (
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="font-mono text-blue-600 hover:underline"
+                                  >
+                                    {label} ↗
+                                  </a>
+                                ) : (
+                                  <span className="font-mono text-ink">{label}</span>
+                                );
+                              })()
+                            ) : (
+                              <span className="text-red-600">
+                                No tracking number — contact supplier
+                              </span>
+                            )}
                           </span>
+                          {(box.status === "IN_TRANSIT" || box.status === "DELAYED") && (
+                            <span className="col-span-2 sm:col-span-3">
+                              {(() => {
+                                const d = daysSince(shipment.shipmentDate, now);
+                                return (
+                                  <span
+                                    className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${SEV_CLASS[transitSeverity(d)]}`}
+                                  >
+                                    ⏱ {d} day{d === 1 ? "" : "s"} in transit
+                                  </span>
+                                );
+                              })()}
+                            </span>
+                          )}
                           <span>Units: {box.unitsPerBox}</span>
-                          <span>Weight: {box.weightOfBox} lbs</span>
+                          <span>
+                            Weight: {box.weightOfBox} lbs / {(box.weightOfBox / 2.20462).toFixed(2)} kg
+                          </span>
                           {box.weightReceived != null && (
                             <span>Got: {box.weightReceived} lbs</span>
                           )}

@@ -38,9 +38,9 @@ export default function DashboardLayout({
               <Link href="/dashboard/form" className="hover:text-ink">
                 📝 Smart form
               </Link>
-              <a href="/api/export" className="hover:text-ink">
+              <Link href="/dashboard/export" className="hover:text-ink">
                 ⬇️ Export
-              </a>
+              </Link>
             </nav>
           </div>
           {!authDisabled() && (
