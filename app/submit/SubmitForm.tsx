@@ -15,7 +15,9 @@ type Line = {
   weightPerBox: string;
   shippingMethod: string;
   carrier: string;
+  trackingMode: "BATCH" | "PER_BOX";
   trackingNumber: string;
+  boxTracking: string[];
 };
 
 const emptyLine = (): Line => ({
@@ -28,7 +30,9 @@ const emptyLine = (): Line => ({
   weightPerBox: "",
   shippingMethod: "",
   carrier: "",
+  trackingMode: "BATCH",
   trackingNumber: "",
+  boxTracking: [],
 });
 
 const CARRIERS = [
@@ -38,6 +42,62 @@ const CARRIERS = [
   ["DHL", "DHL"],
   ["OTHER", "Others (Special Delivery)"],
 ];
+
+const METHOD_DISP: Record<string, string> = { AIR: "Air ✈️", SEA: "Sea 🚢" };
+const CARRIER_DISP: Record<string, string> = Object.fromEntries(CARRIERS);
+
+// Per-box tracking table: one row per box, with the line's units / weight /
+// method / carrier copied down and an editable tracking number each.
+function PerBoxTracking({
+  line,
+  onChange,
+  indexErr,
+}: {
+  line: Line;
+  onChange: (k: number, v: string) => void;
+  indexErr: (k: number) => string | undefined;
+}) {
+  const n = Number(line.boxCount) || 0;
+  if (n <= 0) {
+    return (
+      <p className="text-xs text-muted">Enter the number of boxes above to list them.</p>
+    );
+  }
+  const method = METHOD_DISP[line.shippingMethod] || "—";
+  const carrier = CARRIER_DISP[line.carrier] || "—";
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-200">
+      <div className="hidden bg-slate-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:grid sm:grid-cols-[3rem_1fr_1.6fr]">
+        <div>Box</div>
+        <div>Details (copied)</div>
+        <div>Tracking # *</div>
+      </div>
+      <div className="max-h-80 divide-y divide-slate-100 overflow-auto">
+        {Array.from({ length: n }, (_, k) => (
+          <div
+            key={k}
+            className="grid grid-cols-1 gap-1 px-3 py-2 sm:grid-cols-[3rem_1fr_1.6fr] sm:items-center"
+          >
+            <div className="text-xs font-semibold text-slate-500">#{k + 1}</div>
+            <div className="text-xs text-muted">
+              {line.unitsPerBox || "?"} units · {line.weightPerBox || "?"} lbs · {method} ·{" "}
+              {carrier}
+            </div>
+            <div>
+              <input
+                className="input py-1.5"
+                placeholder={`Tracking # for box ${k + 1}`}
+                value={line.boxTracking?.[k] || ""}
+                onChange={(e) => onChange(k, e.target.value)}
+              />
+              {indexErr(k) && <p className="err">{indexErr(k)}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function SubmitForm() {
   const router = useRouter();
@@ -65,12 +125,23 @@ export function SubmitForm() {
       productImage: p.image,
     });
   }
+  function setBoxTracking(i: number, k: number, value: string) {
+    setLines((prev) =>
+      prev.map((l, idx) => {
+        if (idx !== i) return l;
+        const arr = [...(l.boxTracking || [])];
+        while (arr.length <= k) arr.push("");
+        arr[k] = value;
+        return { ...l, boxTracking: arr };
+      })
+    );
+  }
   function addLine() {
     setLines((p) => [...p, emptyLine()]);
   }
   function duplicateLine(i: number) {
     setLines((p) => {
-      const copy = { ...p[i], trackingNumber: "" };
+      const copy = { ...p[i], trackingNumber: "", boxTracking: [] };
       const next = [...p];
       next.splice(i + 1, 0, copy);
       return next;
@@ -116,7 +187,9 @@ export function SubmitForm() {
         weightPerBox: l.weightPerBox,
         shippingMethod: l.shippingMethod,
         carrier: l.carrier,
+        trackingMode: l.trackingMode,
         trackingNumber: l.trackingNumber,
+        boxTracking: l.boxTracking,
       })),
     };
 
@@ -348,17 +421,53 @@ export function SubmitForm() {
                   </select>
                   {err(`lines.${i}.carrier`) && <p className="err">{err(`lines.${i}.carrier`)}</p>}
                 </div>
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="label">Tracking # *</label>
-                  <input
-                    className="input"
-                    value={l.trackingNumber}
-                    onChange={(e) => setLine(i, { trackingNumber: e.target.value })}
-                  />
-                  {err(`lines.${i}.trackingNumber`) && (
-                    <p className="err">{err(`lines.${i}.trackingNumber`)}</p>
-                  )}
+              </div>
+
+              {/* Tracking numbers */}
+              <div className="mt-4 border-t border-slate-200 pt-3">
+                <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Tracking number *
+                  </span>
+                  <label className="flex items-center gap-1.5 text-sm">
+                    <input
+                      type="radio"
+                      name={`tm-${i}`}
+                      checked={l.trackingMode === "BATCH"}
+                      onChange={() => setLine(i, { trackingMode: "BATCH" })}
+                    />
+                    One per batch
+                  </label>
+                  <label className="flex items-center gap-1.5 text-sm">
+                    <input
+                      type="radio"
+                      name={`tm-${i}`}
+                      checked={l.trackingMode === "PER_BOX"}
+                      onChange={() => setLine(i, { trackingMode: "PER_BOX" })}
+                    />
+                    One per box
+                  </label>
                 </div>
+
+                {l.trackingMode === "BATCH" ? (
+                  <div className="sm:max-w-sm">
+                    <input
+                      className="input"
+                      placeholder="Tracking number for all boxes"
+                      value={l.trackingNumber}
+                      onChange={(e) => setLine(i, { trackingNumber: e.target.value })}
+                    />
+                    {err(`lines.${i}.trackingNumber`) && (
+                      <p className="err">{err(`lines.${i}.trackingNumber`)}</p>
+                    )}
+                  </div>
+                ) : (
+                  <PerBoxTracking
+                    line={l}
+                    indexErr={(k) => err(`lines.${i}.boxTracking.${k}`)}
+                    onChange={(k, v) => setBoxTracking(i, k, v)}
+                  />
+                )}
               </div>
             </div>
           ))}

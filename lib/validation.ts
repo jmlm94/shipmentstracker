@@ -26,11 +26,28 @@ export const lineSchema = z.object({
   carrier: z.enum(["UPS", "FEDEX", "USPS", "DHL", "OTHER"], {
     errorMap: () => ({ message: "Select a carrier" }),
   }),
-  trackingNumber: z
-    .string()
-    .trim()
-    .min(3, "Tracking number is required")
-    .max(80, "Tracking number looks too long"),
+  trackingMode: z.enum(["BATCH", "PER_BOX"]).default("BATCH"),
+  trackingNumber: z.string().trim().max(80).optional().or(z.literal("")),
+  boxTracking: z.array(z.string().trim().max(80)).optional(),
+}).superRefine((l, ctx) => {
+  if (l.trackingMode === "PER_BOX") {
+    const arr = l.boxTracking || [];
+    for (let i = 0; i < l.boxCount; i++) {
+      if (!arr[i] || arr[i].length < 3) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["boxTracking", i],
+          message: "Tracking # required",
+        });
+      }
+    }
+  } else if (!l.trackingNumber || l.trackingNumber.length < 3) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["trackingNumber"],
+      message: "Tracking number is required",
+    });
+  }
 });
 
 export const shipmentSchema = z.object({

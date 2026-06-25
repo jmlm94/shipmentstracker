@@ -53,6 +53,7 @@ export async function POST(req: Request) {
 
     let boxNumber = 0;
     for (const l of data.lines) {
+      const perBox = l.trackingMode === "PER_BOX";
       const line = await tx.shipmentLine.create({
         data: {
           shipmentId: created.id,
@@ -65,13 +66,14 @@ export async function POST(req: Request) {
           weightPerBox: l.weightPerBox,
           shippingMethod: l.shippingMethod,
           carrier: l.carrier,
-          trackingNumber: l.trackingNumber,
+          trackingPerBox: perBox,
+          trackingNumber: perBox ? null : l.trackingNumber || null,
         },
       });
 
       const boxes: Prisma.BoxCreateManyInput[] = Array.from(
         { length: l.boxCount },
-        () => {
+        (_, k) => {
           boxNumber += 1;
           return {
             shipmentId: created.id,
@@ -81,7 +83,9 @@ export async function POST(req: Request) {
             productId: l.productId,
             productName: l.productName,
             productImage: l.productImage || null,
-            trackingNumber: l.trackingNumber,
+            trackingNumber: perBox
+              ? (l.boxTracking?.[k] || "").trim()
+              : (l.trackingNumber || "").trim(),
             unitsPerBox: l.unitsPerBox,
             weightOfBox: l.weightPerBox,
             shippingMethod: l.shippingMethod,

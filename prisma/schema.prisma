@@ -51,7 +51,8 @@ model ShipmentLine {
   weightPerBox    Float           // lbs, per box
   shippingMethod  ShippingMethod  // one method for the whole SKU line
   carrier         Carrier
-  trackingNumber  String          // shared across this line's boxes
+  trackingPerBox  Boolean  @default(false) // true = each box has its own tracking #
+  trackingNumber  String?         // the batch tracking # (null when per-box)
 
   boxes           Box[]
 

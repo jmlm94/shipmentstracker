@@ -96,7 +96,7 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
                   <div className="text-xs text-muted">
                     {line.productSku ? `${line.productSku} · ` : ""}
                     {CARRIER_LABEL[line.carrier]} · {METHOD_LABEL[line.shippingMethod]} · 🔖{" "}
-                    {line.trackingNumber}
+                    {line.trackingPerBox ? "tracking per box" : line.trackingNumber}
                   </div>
                 </div>
                 <div className="text-right text-sm">
@@ -128,6 +128,9 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
                           )}
                         </div>
                         <div className="mt-1 grid grid-cols-2 gap-x-6 gap-y-0.5 text-sm text-muted sm:grid-cols-3">
+                          <span className="col-span-2 sm:col-span-3">
+                            🔖 <span className="font-mono text-ink">{box.trackingNumber}</span>
+                          </span>
                           <span>Units: {box.unitsPerBox}</span>
                           <span>Weight: {box.weightOfBox} lbs</span>
                           {box.weightReceived != null && (
