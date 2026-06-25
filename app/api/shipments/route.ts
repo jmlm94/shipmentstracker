@@ -44,6 +44,7 @@ export async function POST(req: Request) {
       data: {
         code,
         poNumber: data.poNumber,
+        purchaseOrderId: data.purchaseOrderId || null,
         supplierName: data.supplierName,
         supplierEmail: data.supplierEmail || null,
         shipmentDate: new Date(data.shipmentDate),

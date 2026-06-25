@@ -17,3 +17,8 @@ export function generateShipmentCode(): string {
 export function boxCodeFor(shipmentCode: string, boxNumber: number): string {
   return `${shipmentCode}-${String(boxNumber).padStart(3, "0")}`;
 }
+
+// Sequential purchase order code, e.g. "PO-0001".
+export function poCodeFor(seq: number): string {
+  return `PO-${String(seq).padStart(4, "0")}`;
+}

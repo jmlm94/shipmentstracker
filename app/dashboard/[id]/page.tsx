@@ -65,11 +65,19 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
             <span className="rounded-md bg-orange-100 px-2 py-1 font-mono text-sm font-semibold text-orange-800">
               {shipment.code}
             </span>
-            {shipment.poNumber && (
-              <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-sm text-slate-700">
-                {shipment.poNumber}
-              </span>
-            )}
+            {shipment.poNumber &&
+              (shipment.purchaseOrderId ? (
+                <Link
+                  href={`/dashboard/orders/${shipment.purchaseOrderId}`}
+                  className="rounded-md bg-slate-100 px-2 py-1 font-mono text-sm text-slate-700 hover:bg-slate-200"
+                >
+                  {shipment.poNumber} ↗
+                </Link>
+              ) : (
+                <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-sm text-slate-700">
+                  {shipment.poNumber}
+                </span>
+              ))}
             {shipment.manuallyAdded && (
               <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
                 manually added

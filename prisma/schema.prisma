@@ -29,11 +29,67 @@ model Shipment {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  purchaseOrderId String?
+
   lines           ShipmentLine[]
   boxes           Box[]
 
   @@index([createdAt])
   @@index([code])
+  @@index([purchaseOrderId])
+  @@schema("shipments")
+}
+
+// A purchase order the team creates BEFORE goods ship. Suppliers locate it on
+// the intake form so their shipment matches what was ordered, and receiving
+// rolls up against the ordered quantities.
+model PurchaseOrder {
+  id              String   @id @default(cuid())
+  code            String   @unique          // e.g. PO-0001
+  supplierName    String
+  supplierEmail   String?
+  supplierContact String?
+  status          PoStatus @default(OPEN)
+  orderDate       DateTime @default(now())
+  expectedDate    DateTime?
+  currency        String   @default("USD")
+  shippingCost    Float    @default(0)
+  otherCost       Float    @default(0)
+  otherCostLabel  String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  items           PurchaseOrderItem[]
+  shipments       Shipment[]
+
+  @@index([status])
+  @@index([code])
+  @@schema("shipments")
+}
+
+model PurchaseOrderItem {
+  id              String  @id @default(cuid())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  purchaseOrderId String
+  productId       String
+  productName     String
+  productImage    String?
+  sku             String?
+  quantity        Int
+  unitCost        Float   @default(0)
+
+  @@index([purchaseOrderId])
+  @@schema("shipments")
+}
+
+enum PoStatus {
+  OPEN
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+
   @@schema("shipments")
 }
 

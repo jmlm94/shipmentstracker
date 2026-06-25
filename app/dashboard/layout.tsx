@@ -23,6 +23,9 @@ export default function DashboardLayout({
               <Link href="/dashboard" className="hover:text-ink">
                 📊 Overview
               </Link>
+              <Link href="/dashboard/orders" className="hover:text-ink">
+                🧾 Orders
+              </Link>
               <Link href="/dashboard/shipments" className="hover:text-ink">
                 🚚 Shipments
               </Link>

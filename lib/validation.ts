@@ -52,7 +52,8 @@ export const lineSchema = z.object({
 
 export const shipmentSchema = z.object({
   supplierName: z.string().trim().min(1, "Supplier name is required"),
-  poNumber: z.string().trim().min(1, "PO number is required").max(80),
+  poNumber: z.string().trim().min(1, "Select or enter your purchase order").max(80),
+  purchaseOrderId: z.string().optional().nullable(),
   supplierEmail: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),
   shipmentDate: z
     .string()

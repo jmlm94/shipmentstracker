@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProductCombobox } from "@/components/ProductCombobox";
+import { OrderPicker } from "@/components/OrderPicker";
 import type { CatalogProduct } from "@/lib/catalog";
 
 const KG_TO_LBS = 2.20462;
@@ -106,6 +107,7 @@ export function SubmitForm({ internal = false }: { internal?: boolean }) {
 
   const [supplierName, setSupplierName] = useState("");
   const [poNumber, setPoNumber] = useState("");
+  const [purchaseOrderId, setPurchaseOrderId] = useState<string | null>(null);
   const [supplierEmail, setSupplierEmail] = useState("");
   const [shipmentDate, setShipmentDate] = useState("");
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState("");
@@ -247,6 +249,7 @@ export function SubmitForm({ internal = false }: { internal?: boolean }) {
     const payload = {
       supplierName,
       poNumber,
+      purchaseOrderId,
       supplierEmail,
       shipmentDate,
       expectedDeliveryDate: expectedDeliveryDate || null,
@@ -323,17 +326,16 @@ export function SubmitForm({ internal = false }: { internal?: boolean }) {
             {err("supplierName") && <p className="err">{err("supplierName")}</p>}
           </div>
           <div>
-            <label className="label">PO Number *</label>
-            <input
-              className="input"
-              value={poNumber}
-              onChange={(e) => {
-                setPoNumber(e.target.value);
+            <label className="label">Purchase order *</label>
+            <OrderPicker
+              poNumber={poNumber}
+              onChange={(code, id) => {
+                setPoNumber(code);
+                setPurchaseOrderId(id);
                 clearErr("poNumber");
               }}
-              placeholder="e.g. PO-2026-0041"
+              error={err("poNumber")}
             />
-            {err("poNumber") && <p className="err">{err("poNumber")}</p>}
           </div>
           <div>
             <label className="label">Email address *</label>
