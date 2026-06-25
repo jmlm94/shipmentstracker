@@ -52,9 +52,15 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   for (const box of shipment.boxes) {
     const page = pdf.addPage([W, H]);
 
-    // Brand bar
+    // Brand bar with the Carbinox "X" mark
     page.drawRectangle({ x: 0, y: H - 36, width: W, height: 36, color: ORANGE });
-    centered(page, BRAND.toUpperCase(), H - 25, bold, 16, rgb(1, 1, 1));
+    const xc = 22;
+    const yc = H - 18;
+    const s = 7;
+    const white = rgb(1, 1, 1);
+    page.drawLine({ start: { x: xc - s, y: yc - s }, end: { x: xc + s, y: yc + s }, thickness: 3, color: white });
+    page.drawLine({ start: { x: xc - s, y: yc + s }, end: { x: xc + s, y: yc - s }, thickness: 3, color: white });
+    centered(page, BRAND.toUpperCase(), H - 25, bold, 16, white);
 
     // Product
     let y = H - 60;

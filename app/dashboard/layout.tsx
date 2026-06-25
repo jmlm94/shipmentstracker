@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { authDisabled, isAuthed } from "@/lib/auth";
+import { Logo } from "@/components/Logo";
 
 export default function DashboardLayout({
   children,
@@ -14,8 +15,9 @@ export default function DashboardLayout({
       <header className="border-b border-orange-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <Link href="/dashboard" className="font-bold text-orange-600">
-              📦 Carbinox Tracker
+            <Link href="/dashboard" className="flex items-center gap-2 font-bold text-orange-600">
+              <Logo className="h-7 w-7" />
+              Carbinox Tracker
             </Link>
             <nav className="flex items-center gap-x-4 text-sm text-muted">
               <Link href="/dashboard" className="hover:text-ink">

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/StatusBadge";
 import { BoxStatusEditor } from "@/components/BoxStatusEditor";
 import { PhotoUpload } from "@/components/PhotoUpload";
+import { DeleteShipmentButton } from "@/components/DeleteShipmentButton";
 import { CARRIER_LABEL, METHOD_LABEL } from "@/lib/status";
 
 export const dynamic = "force-dynamic";
@@ -57,14 +58,17 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
             </p>
           )}
         </div>
-        <a
-          href={`/api/shipments/${shipment.id}/labels`}
-          target="_blank"
-          rel="noreferrer"
-          className="btn-secondary"
-        >
-          🏷️ Box labels (PDF)
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/api/shipments/${shipment.id}/labels`}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-secondary"
+          >
+            🏷️ Box labels (PDF)
+          </a>
+          <DeleteShipmentButton id={shipment.id} code={shipment.code} />
+        </div>
       </div>
 
       <div className="space-y-6">

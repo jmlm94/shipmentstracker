@@ -1,4 +1,5 @@
 import { SubmitForm } from "./SubmitForm";
+import { Logo } from "@/components/Logo";
 
 export const metadata = { title: "Submit a shipment · Shipments Tracker" };
 
@@ -7,8 +8,9 @@ export default function SubmitPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="bg-gradient-to-r from-orange-600 to-orange-500 text-white">
-        <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3 sm:px-6">
-          <span className="text-lg font-bold tracking-tight">📦 {company}</span>
+        <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-3 sm:px-6">
+          <Logo className="h-8 w-8" />
+          <span className="text-lg font-bold tracking-tight">{company}</span>
           <span className="text-sm text-orange-100">· Supplier Shipment Intake</span>
         </div>
       </div>
