@@ -103,6 +103,9 @@ export default async function ShipmentsPage({
             <Link href="/dashboard/shipments/new" className="btn">
               ＋ Add shipment
             </Link>
+            <Link href="/dashboard/shipments/track" className="btn-secondary">
+              🏷️ Add tracking to an order
+            </Link>
           </div>
           <p className="mt-1 text-sm text-muted">
             {shipments.length} shipments · {totalBoxes} boxes

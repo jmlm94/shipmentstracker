@@ -216,9 +216,14 @@ export default async function OrderDetail({ params }: { params: { id: string } }
 
       {/* Linked shipments */}
       <section className="card mb-6 p-5">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-          Linked shipments
-        </h2>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            Linked shipments
+          </h2>
+          <Link href={`/dashboard/shipments/track?po=${po.id}`} className="text-sm font-medium text-blue-600 hover:underline">
+            🏷️ Add tracking
+          </Link>
+        </div>
         {po.shipments.length === 0 ? (
           <p className="text-sm text-muted">
             No shipments linked yet. When a supplier submits a shipment and selects
