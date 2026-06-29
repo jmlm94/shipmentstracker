@@ -2,6 +2,7 @@ import { BoxStatus, Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { sendSlack, formatStatusChange } from "./slack";
 import { STATUS_META } from "./status";
+import { syncPoReceivedFromShipments } from "./receiving";
 
 type BoxWithShipment = Prisma.BoxGetPayload<{ include: { shipment: true } }>;
 
@@ -53,4 +54,26 @@ export async function applyStatusChange(opts: {
   );
 
   return true;
+}
+
+// Carrier-driven status change (from EasyPost polling or the webhook). On
+// delivery we optimistically record full receipt (so the linked PO updates),
+// then roll the receipt up to the purchase order. The warehouse can still
+// correct quantities later via the Receive view — "max" mode never lowers a
+// value entered there.
+export async function applyCarrierStatusChange(opts: {
+  box: BoxWithShipment;
+  toStatus: BoxStatus;
+  detail?: string | null;
+}): Promise<boolean> {
+  const { box, toStatus, detail } = opts;
+  const extra: Prisma.BoxUpdateInput = {};
+  if (toStatus === "DELIVERED" && box.unitsReceived == null) {
+    extra.unitsReceived = box.unitsPerBox;
+  }
+  const changed = await applyStatusChange({ box, toStatus, source: "carrier", detail, extra });
+  if (changed && box.shipment.purchaseOrderId) {
+    await syncPoReceivedFromShipments(box.shipment.purchaseOrderId, "max");
+  }
+  return changed;
 }

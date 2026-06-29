@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import { getTrackingProvider } from "./tracking";
 import { carrierStatusToBoxStatus } from "./status";
-import { applyStatusChange } from "./updateStatus";
+import { applyCarrierStatusChange } from "./updateStatus";
 import { sendSlack } from "./slack";
 import { etaFor, daysSince, TERMINAL_STATUSES } from "./eta";
 
@@ -30,10 +30,9 @@ export async function runTrackingRefresh(trigger: "cron" | "manual") {
         });
         const mapped = carrierStatusToBoxStatus(result.rawStatus);
         if (mapped && mapped !== box.status) {
-          const didChange = await applyStatusChange({
+          const didChange = await applyCarrierStatusChange({
             box,
             toStatus: mapped,
-            source: "carrier",
             detail: result.detail || null,
           });
           if (didChange) changed++;

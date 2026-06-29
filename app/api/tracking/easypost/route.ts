@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { applyStatusChange } from "@/lib/updateStatus";
+import { applyCarrierStatusChange } from "@/lib/updateStatus";
 import { carrierStatusToBoxStatus } from "@/lib/status";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       data: { lastCarrierStatus: detail || rawStatus, lastCheckedAt: new Date() },
     });
     if (mapped && mapped !== box.status) {
-      const didChange = await applyStatusChange({ box, toStatus: mapped, source: "carrier", detail });
+      const didChange = await applyCarrierStatusChange({ box, toStatus: mapped, detail });
       if (didChange) changed++;
     }
   }
