@@ -120,9 +120,7 @@ export default async function OverviewPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="bg-gradient-to-r from-ink via-ink to-brand-600 bg-clip-text text-2xl font-bold text-transparent">
-            Overview
-          </h1>
+          <h1 className="text-2xl font-bold text-ink">Overview</h1>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
             <CountUp value={shipmentCount} className="font-semibold text-ink" /> shipments ·{" "}
             <CountUp value={totalBoxes} className="font-semibold text-ink" /> boxes ·{" "}

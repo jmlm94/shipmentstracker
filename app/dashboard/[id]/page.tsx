@@ -62,7 +62,7 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold">{shipment.supplierName}</h1>
-            <span className="rounded-md bg-orange-100 px-2 py-1 font-mono text-sm font-semibold text-orange-800">
+            <span className="rounded-md bg-brand-100 px-2 py-1 font-mono text-sm font-semibold text-ink">
               {shipment.code}
             </span>
             {shipment.poNumber &&
@@ -162,7 +162,7 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-xs font-semibold text-orange-700">
+                          <span className="font-mono text-xs font-semibold text-ink">
                             {box.boxCode}
                           </span>
                           <StatusBadge status={box.status} />

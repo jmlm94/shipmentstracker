@@ -57,10 +57,10 @@ export default async function SuccessPage({
         )}
 
         {id && (
-          <div className="mt-6 rounded-xl border-2 border-orange-200 bg-orange-50 p-5">
+          <div className="mt-6 rounded-xl border-2 border-brand-200 bg-brand-50 p-5">
             <div className="text-2xl">🏷️</div>
-            <h2 className="mt-1 font-semibold text-orange-900">Download your box labels</h2>
-            <p className="mt-1 text-sm text-orange-800">
+            <h2 className="mt-1 font-semibold text-ink">Download your box labels</h2>
+            <p className="mt-1 text-sm text-ink">
               Print these labels and attach one to each box before handing off to the
               carrier. Each box has its own QR code so we can track it on arrival.
             </p>
@@ -68,7 +68,7 @@ export default async function SuccessPage({
               href={`/api/shipments/${id}/labels`}
               target="_blank"
               rel="noreferrer"
-              className="btn mt-3 inline-block bg-orange-600 hover:bg-orange-700"
+              className="btn mt-3 inline-block bg-ink hover:bg-carbon"
             >
               📄 Download Box Labels (PDF)
             </a>

@@ -141,7 +141,7 @@ export function ReceiveScanner() {
         <div className="card p-4">
           {/* Summary */}
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-semibold text-orange-700">{box.boxCode}</span>
+            <span className="font-mono text-xs font-semibold text-ink">{box.boxCode}</span>
             <span
               className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_META[box.status].color}`}
             >

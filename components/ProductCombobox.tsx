@@ -123,7 +123,7 @@ export function ProductCombobox({
                       onSelect(p);
                       setOpen(false);
                     }}
-                    className="flex flex-col rounded-lg border border-slate-200 p-2 text-left transition hover:border-orange-400 hover:bg-orange-50"
+                    className="flex flex-col rounded-lg border border-slate-200 p-2 text-left transition hover:border-ink hover:bg-brand-50"
                   >
                     {p.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -133,7 +133,7 @@ export function ProductCombobox({
                         className="mb-1.5 h-24 w-full rounded-md object-cover sm:h-28"
                       />
                     ) : (
-                      <div className="mb-1.5 flex h-24 w-full items-center justify-center rounded-md bg-gradient-to-br from-slate-100 to-slate-200 text-2xl sm:h-28">
+                      <div className="mb-1.5 flex h-24 w-full items-center justify-center rounded-md bg-slate-100 text-2xl sm:h-28">
                         📦
                       </div>
                     )}

@@ -13,15 +13,15 @@ export default function SubmitPage() {
     ? raw.replace(/^https?:\/\//i, "").replace(/\/+$/, "")
     : "shopcarbinox.com";
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="bg-gradient-to-r from-orange-600 to-orange-500 text-white">
+    <div className="min-h-screen bg-paper">
+      <div className="bg-ink text-white">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-3 sm:px-6">
           <Logo className="h-8 w-8" />
           <div className="flex flex-col leading-tight">
-            <span className="text-lg font-bold tracking-tight">{company}</span>
-            <span className="text-[11px] text-orange-100">{site}</span>
+            <span className="font-display text-lg font-bold uppercase tracking-tight">{company}</span>
+            <span className="text-[11px] text-white/60">{site}</span>
           </div>
-          <span className="ml-1 text-sm text-orange-100">· Supplier Shipment Intake</span>
+          <span className="ml-1 text-sm text-white/60">· Supplier Shipment Intake</span>
         </div>
       </div>
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">

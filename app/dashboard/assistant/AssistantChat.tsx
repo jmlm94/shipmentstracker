@@ -64,7 +64,7 @@ export function AssistantChat() {
                 <button
                   key={s}
                   onClick={() => send(s)}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-orange-400 hover:text-orange-700"
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-ink hover:text-ink"
                 >
                   {s}
                 </button>
@@ -78,7 +78,7 @@ export function AssistantChat() {
               <div
                 className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm ${
                   m.role === "user"
-                    ? "bg-brand-600 text-white"
+                    ? "bg-ink text-white"
                     : "border border-slate-200 bg-white text-ink"
                 }`}
               >

@@ -424,7 +424,7 @@ export function SubmitForm({ internal = false }: { internal?: boolean }) {
                   type="button"
                   onClick={() => setWeightUnit(u)}
                   className={`px-2 py-1 ${
-                    weightUnit === u ? "bg-orange-600 text-white" : "bg-white text-slate-600"
+                    weightUnit === u ? "bg-ink text-white" : "bg-white text-slate-600"
                   }`}
                 >
                   {u}

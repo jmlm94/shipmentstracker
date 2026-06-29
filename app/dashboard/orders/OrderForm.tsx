@@ -357,7 +357,7 @@ export function OrderForm({ initial }: { initial?: OrderFormInitial }) {
                             c.sign === s
                               ? s === "-"
                                 ? "bg-emerald-600 text-white"
-                                : "bg-orange-600 text-white"
+                                : "bg-ink text-white"
                               : "bg-white text-slate-500"
                           }`}
                         >

@@ -120,7 +120,7 @@ export function ProductRow({
             <button
               onClick={save}
               disabled={busy}
-              className="shrink-0 rounded bg-orange-600 px-2 py-1 text-xs font-medium text-white hover:bg-orange-700 disabled:opacity-50"
+              className="shrink-0 rounded bg-ink px-2 py-1 text-xs font-medium text-white hover:bg-carbon disabled:opacity-50"
             >
               Save
             </button>
@@ -134,7 +134,7 @@ export function ProductRow({
             <button
               onClick={() => setEditing(true)}
               title="Edit name"
-              className="shrink-0 text-slate-400 hover:text-orange-600"
+              className="shrink-0 text-slate-400 hover:text-ink"
             >
               ✏️
             </button>

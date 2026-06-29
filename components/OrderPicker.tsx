@@ -166,7 +166,7 @@ export function OrderPicker({
                   <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-mono text-lg font-bold">{viewing.code}</span>
-                      <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
+                      <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-ink">
                         {viewing.totalUnits} units
                       </span>
                     </div>
@@ -253,7 +253,7 @@ export function OrderPicker({
                         key={o.id}
                         type="button"
                         onClick={() => setViewing(o)}
-                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 p-3 text-left transition hover:border-orange-400 hover:bg-orange-50"
+                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 p-3 text-left transition hover:border-ink hover:bg-brand-50"
                       >
                         <span className="flex min-w-0 items-center gap-3">
                           <span className="font-mono text-sm font-bold">{o.code}</span>

@@ -6,20 +6,23 @@
   color-scheme: light;
 }
 
-body {
-  @apply text-ink antialiased;
-  background-color: #f8fafc;
-  background-image:
-    radial-gradient(at 0% 0%, rgb(255 237 213 / 0.5) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgb(241 245 249 / 0.6) 0px, transparent 45%);
-  background-attachment: fixed;
+@layer base {
+  body {
+    @apply bg-paper text-ink antialiased;
+  }
+  /* Display headings use the grotesque face, tight + slightly condensed feel. */
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+  }
 }
 
 .input {
-  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm
+  @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm
     text-ink shadow-sm outline-none transition
     placeholder:text-slate-400
-    focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20
+    focus:border-ink focus:ring-2 focus:ring-brand-500/40
     disabled:bg-slate-100;
 }
 
@@ -27,32 +30,43 @@ body {
   @apply mb-1 block text-sm font-medium text-slate-700;
 }
 
+/* Primary = black (the brand's dominant color). */
 .btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2
-    text-sm font-semibold text-white shadow-brand transition
-    hover:bg-brand-700 hover:shadow-card-hover active:translate-y-px
-    disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none;
+  @apply inline-flex items-center justify-center gap-2 rounded-md bg-ink px-4 py-2
+    text-sm font-semibold tracking-wide text-white shadow-sm transition
+    hover:bg-carbon active:translate-y-px
+    disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Accent = yellow with black text, for signature calls-to-action. */
+.btn-accent {
+  @apply inline-flex items-center justify-center gap-2 rounded-md bg-brand-500 px-4 py-2
+    text-sm font-bold tracking-wide text-ink shadow-sm transition
+    hover:bg-brand-400 active:translate-y-px
+    disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300
-    bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition
-    hover:border-slate-400 hover:bg-slate-50 active:translate-y-px;
+  @apply inline-flex items-center justify-center gap-2 rounded-md border border-slate-300
+    bg-white px-4 py-2 text-sm font-medium text-ink shadow-sm transition
+    hover:border-ink hover:bg-slate-50 active:translate-y-px;
 }
 
 .err {
   @apply mt-1 text-xs font-medium text-red-600;
 }
 
+/* Cards: hard-edged, square-derived. */
 .card {
-  @apply rounded-2xl border border-slate-200/80 bg-white shadow-card transition;
+  @apply rounded-lg border border-slate-200 bg-white shadow-card transition;
 }
 
-/* Sidebar nav item */
+/* Sidebar nav (dark/black sidebar) */
 .nav-item {
-  @apply flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-600
-    transition hover:bg-slate-100 hover:text-ink;
+  @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-400
+    transition hover:bg-white/10 hover:text-white;
 }
 .nav-item-active {
-  @apply bg-brand-50 text-brand-700 shadow-sm hover:bg-brand-50 hover:text-brand-700;
+  @apply bg-white/10 text-white hover:bg-white/10 hover:text-white;
+  box-shadow: inset 3px 0 0 0 theme("colors.brand.500");
 }

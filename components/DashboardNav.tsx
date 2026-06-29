@@ -76,24 +76,26 @@ export function DashboardNav({ authDisabled }: { authDisabled: boolean }) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-slate-200 bg-white/80 px-3 py-5 backdrop-blur lg:flex">
-        <Link href="/dashboard" className="mb-6 flex items-center gap-2 px-2">
-          <Logo className="h-8 w-8" />
-          <span className="text-[15px] font-bold tracking-tight text-ink">Carbinox</span>
+      <aside className="sticky top-0 hidden h-screen flex-col bg-ink px-3 py-5 lg:flex">
+        <Link href="/dashboard" className="mb-6 flex items-center gap-2 px-2 text-white">
+          <Logo className="h-7 w-7" />
+          <span className="font-display text-[17px] font-bold uppercase tracking-tight text-white">
+            Carbinox
+          </span>
         </Link>
         <NavLinks />
         <SignOut disabled={authDisabled} />
       </aside>
 
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <Logo className="h-7 w-7" />
-          <span className="font-bold tracking-tight text-ink">Carbinox</span>
+      <div className="sticky top-0 z-30 flex items-center justify-between bg-ink px-4 py-3 lg:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2 text-white">
+          <Logo className="h-6 w-6" />
+          <span className="font-display font-bold uppercase tracking-tight text-white">Carbinox</span>
         </Link>
         <button
           onClick={() => setOpen(true)}
-          className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
+          className="rounded-md p-2 text-slate-300 hover:bg-white/10"
           aria-label="Open menu"
         >
           <Menu className="h-5 w-5" />
@@ -103,18 +105,18 @@ export function DashboardNav({ authDisabled }: { authDisabled: boolean }) {
       {/* Mobile drawer */}
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden" onClick={() => setOpen(false)}>
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-black/50" />
           <div
-            className="absolute left-0 top-0 flex h-full w-72 flex-col bg-white px-3 py-5 shadow-2xl"
+            className="absolute left-0 top-0 flex h-full w-72 flex-col bg-ink px-3 py-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-6 flex items-center justify-between px-2">
+            <div className="mb-6 flex items-center justify-between px-2 text-white">
               <span className="flex items-center gap-2">
-                <Logo className="h-7 w-7" />
-                <span className="font-bold tracking-tight text-ink">Carbinox</span>
+                <Logo className="h-6 w-6" />
+                <span className="font-display font-bold uppercase tracking-tight text-white">Carbinox</span>
               </span>
-              <button onClick={() => setOpen(false)} className="rounded-lg p-1.5 hover:bg-slate-100">
-                <X className="h-5 w-5 text-slate-500" />
+              <button onClick={() => setOpen(false)} className="rounded-md p-1.5 hover:bg-white/10">
+                <X className="h-5 w-5 text-slate-300" />
               </button>
             </div>
             <NavLinks onNavigate={() => setOpen(false)} />
