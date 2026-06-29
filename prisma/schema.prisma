@@ -66,10 +66,27 @@ model PurchaseOrder {
   items           PurchaseOrderItem[]
   costs           PurchaseOrderCost[]
   payments        PoPayment[]
+  noteEntries     PoNote[]
   shipments       Shipment[]
 
   @@index([status])
   @@index([code])
+  @@schema("shipments")
+}
+
+// A note on a purchase order. Each entry can carry text, a file attachment, or
+// both. Files are any type (PDF, image, doc, …).
+model PoNote {
+  id              String   @id @default(cuid())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  purchaseOrderId String
+  text            String?
+  fileUrl         String?  // Vercel Blob URL or data-URI fallback
+  fileName        String?  // original filename
+  fileType        String?  // mime type
+  createdAt       DateTime @default(now())
+
+  @@index([purchaseOrderId])
   @@schema("shipments")
 }
 

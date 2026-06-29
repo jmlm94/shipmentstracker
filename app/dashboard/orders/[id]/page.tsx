@@ -5,6 +5,7 @@ import { PO_STATUS_META, money, unifyCosts } from "@/lib/poStatus";
 import { CountUp } from "@/components/CountUp";
 import { PoActions } from "../PoActions";
 import { PoPayments } from "../PoPayments";
+import { PoNotes } from "../PoNotes";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export default async function OrderDetail({ params }: { params: { id: string } }
       items: true,
       costs: true,
       payments: { orderBy: { createdAt: "desc" } },
+      noteEntries: { orderBy: { createdAt: "desc" } },
       shipments: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -211,6 +213,19 @@ export default async function OrderDetail({ params }: { params: { id: string } }
           label: p.label,
           amount: p.amount,
           paidAt: p.paidAt.toISOString().slice(0, 10),
+        }))}
+      />
+
+      {/* Notes & files */}
+      <PoNotes
+        orderId={po.id}
+        notes={po.noteEntries.map((n) => ({
+          id: n.id,
+          text: n.text,
+          fileUrl: n.fileUrl,
+          fileName: n.fileName,
+          fileType: n.fileType,
+          createdAt: n.createdAt.toISOString(),
         }))}
       />
 
