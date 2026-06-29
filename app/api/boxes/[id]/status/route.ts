@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
 import { applyStatusChange } from "@/lib/updateStatus";
+import { syncPoReceivedFromShipments } from "@/lib/receiving";
 
 const schema = z.object({
   status: z.enum([
@@ -67,6 +68,12 @@ export async function PATCH(
     detail: detail || null,
     extra,
   });
+
+  // Reflect this receipt on the linked purchase order (delivered package →
+  // PO received count). "max" so it never lowers a manually-entered value.
+  if (box.shipment.purchaseOrderId) {
+    await syncPoReceivedFromShipments(box.shipment.purchaseOrderId, "max");
+  }
 
   return NextResponse.json({ ok: true, hasDiscrepancy: extra.hasDiscrepancy });
 }
