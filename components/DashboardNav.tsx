@@ -12,6 +12,7 @@ import {
   Tags,
   FileText,
   Download,
+  MessageCircle,
   LogOut,
   Menu,
   X,
@@ -25,6 +26,7 @@ const NAV = [
   { href: "/dashboard/receive", label: "Receive", icon: ScanLine },
   { href: "/dashboard/expected", label: "Expected", icon: Clock },
   { href: "/dashboard/products", label: "Products", icon: Tags },
+  { href: "/dashboard/assistant", label: "Assistant", icon: MessageCircle },
   { href: "/dashboard/form", label: "Smart Form", icon: FileText },
   { href: "/dashboard/export", label: "Export", icon: Download },
 ];
