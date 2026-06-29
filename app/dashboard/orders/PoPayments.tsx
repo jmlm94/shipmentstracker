@@ -1,9 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 
-type Payment = { id: string; url: string; label: string | null; amount: number | null; createdAt: string };
+type Payment = {
+  id: string;
+  url: string;
+  label: string | null;
+  amount: number | null;
+  paidAt: string; // YYYY-MM-DD
+};
 
 export function PoPayments({
   orderId,
@@ -14,12 +19,9 @@ export function PoPayments({
   currency: string;
   payments: Payment[];
 }) {
-  const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [pending, setPending] = useState<File | null>(null);
-  const [label, setLabel] = useState("");
-  const [amount, setAmount] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [items, setItems] = useState<Payment[]>(payments);
+  const [uploading, setUploading] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   function money(n: number) {
@@ -30,68 +32,117 @@ export function PoPayments({
     }
   }
 
-  async function upload() {
-    if (!pending) return;
-    setBusy(true);
+  const total = items.reduce((s, p) => s + (p.amount || 0), 0);
+
+  async function uploadFiles(files: File[]) {
     setError(null);
-    try {
-      const fd = new FormData();
-      fd.append("image", pending);
-      if (label.trim()) fd.append("label", label.trim());
-      if (amount.trim()) fd.append("amount", amount.trim());
-      const res = await fetch(`/api/orders/${orderId}/payments`, { method: "POST", body: fd });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error || "Upload failed.");
-        return;
+    const valid = files.filter((f) => f.type === "image/jpeg" || f.type === "image/png");
+    if (valid.length !== files.length) setError("Only JPG/PNG screenshots are supported — others were skipped.");
+    setUploading(valid.length);
+    for (const file of valid) {
+      try {
+        const fd = new FormData();
+        fd.append("image", file);
+        const res = await fetch(`/api/orders/${orderId}/payments`, { method: "POST", body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.payment) {
+          setItems((prev) => [data.payment as Payment, ...prev]);
+        } else {
+          setError(data.error || "An upload failed.");
+        }
+      } catch {
+        setError("An upload failed.");
+      } finally {
+        setUploading((n) => n - 1);
       }
-      setPending(null);
-      setLabel("");
-      setAmount("");
-      router.refresh();
-    } finally {
-      setBusy(false);
     }
+  }
+
+  function patch(id: string, field: "label" | "amount" | "paidAt", value: string) {
+    setItems((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, [field]: field === "amount" ? (value === "" ? null : Number(value)) : value }
+          : p
+      )
+    );
+    fetch(`/api/orders/${orderId}/payments`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paymentId: id, [field]: value }),
+    }).catch(() => {});
   }
 
   async function remove(id: string) {
     if (!confirm("Remove this payment confirmation?")) return;
-    await fetch(`/api/orders/${orderId}/payments?paymentId=${id}`, { method: "DELETE" });
-    router.refresh();
+    setItems((prev) => prev.filter((p) => p.id !== id));
+    await fetch(`/api/orders/${orderId}/payments?paymentId=${id}`, { method: "DELETE" }).catch(() => {});
   }
 
   return (
     <section className="card mb-6 p-5">
-      <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
-        💳 Payment confirmations
-      </h2>
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+          💳 Payment confirmations
+        </h2>
+        {total > 0 && (
+          <span className="text-sm text-muted">
+            Total paid: <span className="font-semibold text-emerald-600">{money(total)}</span>
+          </span>
+        )}
+      </div>
       <p className="mb-3 text-xs text-muted">
-        Upload JPG/PNG screenshots of payments made for this order (deposit, balance, etc.).
+        Upload one or more JPG/PNG screenshots — we read the amount automatically. Set the
+        payment date with the calendar (defaults to today). Everything stays editable.
       </p>
 
-      {payments.length > 0 && (
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {payments.map((p) => (
-            <div key={p.id} className="group relative overflow-hidden rounded-xl border border-slate-200">
-              <a href={p.url} target="_blank" rel="noreferrer">
+      {(items.length > 0 || uploading > 0) && (
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: uploading }).map((_, i) => (
+            <div
+              key={`up-${i}`}
+              className="flex h-44 animate-pulse items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-sm text-muted"
+            >
+              📤 Reading screenshot…
+            </div>
+          ))}
+          {items.map((p) => (
+            <div key={p.id} className="overflow-hidden rounded-xl border border-slate-200">
+              <a href={p.url} target="_blank" rel="noreferrer" className="block">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt={p.label || "Payment"} className="h-32 w-full object-cover" />
+                <img src={p.url} alt={p.label || "Payment"} className="h-32 w-full bg-slate-50 object-cover" />
               </a>
-              <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-                <div className="min-w-0">
-                  <div className="truncate text-xs font-medium">{p.label || "Payment"}</div>
-                  <div className="text-[11px] text-muted">
-                    {p.amount != null ? money(p.amount) + " · " : ""}
-                    {p.createdAt.slice(0, 10)}
-                  </div>
+              <div className="space-y-2 p-2.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    className="input py-1.5 text-sm font-semibold"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="Amount"
+                    defaultValue={p.amount ?? ""}
+                    onBlur={(e) => patch(p.id, "amount", e.target.value)}
+                  />
+                  <button
+                    onClick={() => remove(p.id)}
+                    title="Remove"
+                    className="shrink-0 text-slate-300 hover:text-red-500"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <button
-                  onClick={() => remove(p.id)}
-                  title="Remove"
-                  className="shrink-0 text-slate-300 hover:text-red-500"
-                >
-                  ✕
-                </button>
+                <input
+                  className="input py-1.5 text-sm"
+                  type="date"
+                  defaultValue={p.paidAt}
+                  onChange={(e) => e.target.value && patch(p.id, "paidAt", e.target.value)}
+                />
+                <input
+                  className="input py-1.5 text-sm"
+                  placeholder="Label (optional, e.g. Deposit 30%)"
+                  defaultValue={p.label ?? ""}
+                  onBlur={(e) => patch(p.id, "label", e.target.value)}
+                />
               </div>
             </div>
           ))}
@@ -102,53 +153,22 @@ export function PoPayments({
         ref={fileRef}
         type="file"
         accept="image/jpeg,image/png"
+        multiple
         className="hidden"
         onChange={(e) => {
-          const f = e.target.files?.[0] || null;
-          setPending(f);
-          setError(null);
+          const files = Array.from(e.target.files || []);
+          if (files.length) uploadFiles(files);
           e.target.value = "";
         }}
       />
-
-      {pending ? (
-        <div className="flex flex-wrap items-end gap-2 rounded-xl border border-dashed border-slate-300 p-3">
-          <div className="text-xs text-muted">
-            📎 <span className="font-medium">{pending.name}</span>
-          </div>
-          <div>
-            <label className="label">Label (optional)</label>
-            <input
-              className="input w-44"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. Deposit 30%"
-            />
-          </div>
-          <div>
-            <label className="label">Amount (optional)</label>
-            <input
-              className="input w-28"
-              type="number"
-              min={0}
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-            />
-          </div>
-          <button onClick={upload} disabled={busy} className="btn">
-            {busy ? "Uploading…" : "Save payment"}
-          </button>
-          <button onClick={() => setPending(null)} className="btn-secondary" disabled={busy}>
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary">
-          ＋ Upload payment screenshot
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading > 0}
+        className="btn-secondary"
+      >
+        {uploading > 0 ? "Reading…" : "＋ Upload payment screenshots"}
+      </button>
 
       {error && <p className="err">{error}</p>}
     </section>

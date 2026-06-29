@@ -210,7 +210,7 @@ export default async function OrderDetail({ params }: { params: { id: string } }
           url: p.url,
           label: p.label,
           amount: p.amount,
-          createdAt: p.createdAt.toISOString(),
+          paidAt: p.paidAt.toISOString().slice(0, 10),
         }))}
       />
 

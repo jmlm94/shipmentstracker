@@ -81,7 +81,8 @@ model PoPayment {
   purchaseOrderId String
   url             String   // image URL (Vercel Blob) or data URI fallback
   label           String?  // optional note, e.g. "Deposit 30%"
-  amount          Float?   // optional amount paid
+  amount          Float?   // amount paid (auto-read from the screenshot, editable)
+  paidAt          DateTime @default(now())  // payment date (defaults to upload day, editable)
   createdAt       DateTime @default(now())
 
   @@index([purchaseOrderId])
