@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ALL_STATUSES, ATTENTION_STATUSES, STATUS_META } from "@/lib/status";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RefreshTrackingButton } from "@/components/RefreshTrackingButton";
+import { TestSlackButton } from "@/components/TestSlackButton";
 import { CountUp } from "@/components/CountUp";
 import { etaFor, daysUntil, daysSince, TERMINAL_STATUSES } from "@/lib/eta";
 
@@ -145,6 +146,7 @@ export default async function OverviewPage() {
               {syncStale ? " (may be stale)" : ""}
             </span>
             <RefreshTrackingButton />
+            <TestSlackButton />
           </p>
         </div>
         <Link href="/dashboard/shipments" className="btn-secondary">
