@@ -6,7 +6,7 @@ import { isAuthed } from "@/lib/auth";
 const schema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200).optional(),
   sku: z.string().trim().max(80).optional().nullable(),
-  image: z.string().trim().max(500).optional().nullable(),
+  image: z.string().trim().max(3_000_000).optional().nullable(),
 });
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {

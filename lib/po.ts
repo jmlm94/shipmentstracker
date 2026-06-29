@@ -16,7 +16,7 @@ export const orderBodySchema = z.object({
       z.object({
         productId: z.string().trim().min(1),
         productName: z.string().trim().min(1).max(200),
-        productImage: z.string().trim().max(500).optional().or(z.literal("")),
+        productImage: z.string().trim().max(3_000_000).optional().or(z.literal("")),
         sku: z.string().trim().max(80).optional().or(z.literal("")),
         quantity: z.coerce.number().int().positive(),
         unitCost: z.coerce.number().min(0),
@@ -41,7 +41,9 @@ export const orderBodySchema = z.object({
 export function statusFromReceived(
   items: { quantity: number; receivedQty: number }[],
   current: string
-): "OPEN" | "PARTIALLY_RECEIVED" | "RECEIVED" | "CANCELLED" {
+): "DRAFT" | "OPEN" | "PARTIALLY_RECEIVED" | "RECEIVED" | "CANCELLED" {
+  // DRAFT and CANCELLED are sticky — only changed via an explicit action.
+  if (current === "DRAFT") return "DRAFT";
   if (current === "CANCELLED") return "CANCELLED";
   const ordered = items.reduce((s, it) => s + it.quantity, 0);
   const received = items.reduce((s, it) => s + Math.min(it.receivedQty, it.quantity), 0);

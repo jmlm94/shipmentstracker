@@ -65,10 +65,26 @@ model PurchaseOrder {
 
   items           PurchaseOrderItem[]
   costs           PurchaseOrderCost[]
+  payments        PoPayment[]
   shipments       Shipment[]
 
   @@index([status])
   @@index([code])
+  @@schema("shipments")
+}
+
+// Proof-of-payment screenshot (JPG/PNG) attached to a purchase order. Several
+// per order (e.g. deposit + balance).
+model PoPayment {
+  id              String   @id @default(cuid())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  purchaseOrderId String
+  url             String   // image URL (Vercel Blob) or data URI fallback
+  label           String?  // optional note, e.g. "Deposit 30%"
+  amount          Float?   // optional amount paid
+  createdAt       DateTime @default(now())
+
+  @@index([purchaseOrderId])
   @@schema("shipments")
 }
 
@@ -112,6 +128,7 @@ enum PoCostKind {
 }
 
 enum PoStatus {
+  DRAFT
   OPEN
   PARTIALLY_RECEIVED
   RECEIVED

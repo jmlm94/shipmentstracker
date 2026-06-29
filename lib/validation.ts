@@ -7,7 +7,7 @@ export const lineSchema = z.object({
   productId: z.string().trim().min(1, "Pick a product"),
   productName: z.string().trim().min(1, "Product name missing").max(200),
   productSku: z.string().trim().max(80).optional().or(z.literal("")),
-  productImage: z.string().trim().max(500).optional().or(z.literal("")),
+  productImage: z.string().trim().max(3_000_000).optional().or(z.literal("")),
   boxCount: z
     .coerce.number({ invalid_type_error: "Number of boxes must be a number" })
     .int("Boxes must be a whole number")

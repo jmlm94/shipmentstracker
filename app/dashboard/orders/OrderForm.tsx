@@ -426,7 +426,7 @@ export function OrderForm({ initial }: { initial?: OrderFormInitial }) {
 
       <div className="flex justify-end">
         <button className="btn" disabled={saving}>
-          {saving ? "Saving…" : editing ? "Save changes" : "Create purchase order"}
+          {saving ? "Saving…" : editing ? "Save changes" : "Create draft order"}
         </button>
       </div>
     </form>

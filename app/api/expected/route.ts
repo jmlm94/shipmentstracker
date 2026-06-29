@@ -12,7 +12,7 @@ const schema = z.object({
       z.object({
         productId: z.string().trim().min(1),
         productName: z.string().trim().min(1).max(200),
-        productImage: z.string().trim().max(500).optional().nullable(),
+        productImage: z.string().trim().max(3_000_000).optional().nullable(),
         expectedUnits: z.coerce.number().int().positive(),
       })
     )

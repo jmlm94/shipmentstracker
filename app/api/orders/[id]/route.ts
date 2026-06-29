@@ -63,7 +63,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 const patchSchema = z.object({
-  status: z.enum(["OPEN", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"]),
+  status: z.enum(["DRAFT", "OPEN", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"]),
 });
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {

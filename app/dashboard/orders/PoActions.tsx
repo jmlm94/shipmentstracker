@@ -44,6 +44,22 @@ export function PoActions({
     router.refresh();
   }
 
+  if (status === "DRAFT") {
+    return (
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Link href={`/dashboard/orders/${id}/edit`} className="btn-secondary">
+          ✏️ Edit
+        </Link>
+        <button onClick={() => setStatus("OPEN")} disabled={busy} className="btn">
+          📤 Finalize order
+        </button>
+        <button onClick={remove} disabled={busy} className="text-red-600 hover:underline">
+          Delete
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       <Link href={`/dashboard/orders/${id}/edit`} className="btn-secondary">

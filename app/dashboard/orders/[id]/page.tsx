@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PO_STATUS_META, money, unifyCosts } from "@/lib/poStatus";
 import { CountUp } from "@/components/CountUp";
 import { PoActions } from "../PoActions";
+import { PoPayments } from "../PoPayments";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export default async function OrderDetail({ params }: { params: { id: string } }
     include: {
       items: true,
       costs: true,
+      payments: { orderBy: { createdAt: "desc" } },
       shipments: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -67,6 +69,13 @@ export default async function OrderDetail({ params }: { params: { id: string } }
         </div>
         <PoActions id={po.id} code={po.code} status={po.status} hasShipments={po.shipments.length > 0} />
       </div>
+
+      {po.status === "DRAFT" && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          📝 This order is a <strong>draft</strong>. Suppliers can&apos;t find it on the intake form
+          yet — click <strong>Finalize order</strong> when it&apos;s ready.
+        </div>
+      )}
 
       {/* Fulfillment summary */}
       <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -191,6 +200,19 @@ export default async function OrderDetail({ params }: { params: { id: string } }
           </div>
         </div>
       </section>
+
+      {/* Payment confirmations */}
+      <PoPayments
+        orderId={po.id}
+        currency={po.currency}
+        payments={po.payments.map((p) => ({
+          id: p.id,
+          url: p.url,
+          label: p.label,
+          amount: p.amount,
+          createdAt: p.createdAt.toISOString(),
+        }))}
+      />
 
       {/* Linked shipments */}
       <section className="card mb-6 p-5">

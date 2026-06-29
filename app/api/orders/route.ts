@@ -25,6 +25,7 @@ export async function POST(req: Request) {
   const po = await prisma.purchaseOrder.create({
     data: {
       code,
+      status: "DRAFT", // new orders start as a draft until finalized
       supplierName: d.supplierName,
       supplierEmail: d.supplierEmail || null,
       supplierContact: d.supplierContact || null,
