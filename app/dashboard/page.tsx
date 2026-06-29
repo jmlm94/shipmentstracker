@@ -217,7 +217,7 @@ export default async function OverviewPage() {
       )}
 
       {/* Global status tiles */}
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
         {ALL_STATUSES.map((s) => (
           <Link
             key={s}

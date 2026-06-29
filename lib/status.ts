@@ -22,6 +22,7 @@ export const STATUS_META: Record<
 > = {
   PENDING: { label: "Not shipped", emoji: "🕓", color: "bg-slate-100 text-slate-700", dot: "bg-slate-400" },
   IN_TRANSIT: { label: "In transit", emoji: "🚚", color: "bg-blue-100 text-blue-700", dot: "bg-blue-500" },
+  OUT_FOR_DELIVERY: { label: "Out for delivery", emoji: "📬", color: "bg-indigo-100 text-indigo-700", dot: "bg-indigo-500" },
   DELAYED: { label: "Stuck", emoji: "⚠️", color: "bg-amber-100 text-amber-800", dot: "bg-amber-500", attention: true },
   DELIVERED: { label: "Delivered", emoji: "✅", color: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
   DAMAGED: { label: "Damaged", emoji: "💥", color: "bg-orange-100 text-orange-800", dot: "bg-orange-500", attention: true },
@@ -33,6 +34,7 @@ export const STATUS_META: Record<
 export const ALL_STATUSES: BoxStatus[] = [
   "PENDING",
   "IN_TRANSIT",
+  "OUT_FOR_DELIVERY",
   "DELAYED",
   "DELIVERED",
   "DAMAGED",
@@ -50,8 +52,9 @@ export const ATTENTION_STATUSES: BoxStatus[] = ALL_STATUSES.filter(
 export function allowedNextStatuses(current: BoxStatus): BoxStatus[] {
   const fwd: Record<BoxStatus, BoxStatus[]> = {
     PENDING: ["IN_TRANSIT"],
-    IN_TRANSIT: ["DELAYED", "DELIVERED"],
-    DELAYED: ["IN_TRANSIT", "DELIVERED"],
+    IN_TRANSIT: ["OUT_FOR_DELIVERY", "DELAYED", "DELIVERED"],
+    OUT_FOR_DELIVERY: ["DELIVERED", "DELAYED"],
+    DELAYED: ["IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"],
     DELIVERED: ["ADDED_IN_STOCK"],
     ADDED_IN_STOCK: [],
     DAMAGED: ["ADDED_IN_STOCK"],
@@ -64,10 +67,18 @@ export function allowedNextStatuses(current: BoxStatus): BoxStatus[] {
 // Maps a raw carrier tracking status string onto our BoxStatus enum.
 export function carrierStatusToBoxStatus(raw: string): BoxStatus | null {
   const s = raw.toLowerCase();
+  // Check "out for delivery" BEFORE "delivered" — it contains "deliver".
+  if (s.includes("out_for_delivery") || s.includes("out for delivery")) return "OUT_FOR_DELIVERY";
   if (s.includes("deliver")) return "DELIVERED";
-  if (s.includes("transit") || s.includes("out_for_delivery") || s.includes("in_transit"))
-    return "IN_TRANSIT";
-  if (s.includes("delay") || s.includes("exception") || s.includes("failure"))
+  if (s.includes("transit") || s.includes("in_transit")) return "IN_TRANSIT";
+  if (
+    s.includes("delay") ||
+    s.includes("exception") ||
+    s.includes("failure") ||
+    s.includes("return") ||
+    s.includes("cancel") ||
+    s.includes("error")
+  )
     return "DELAYED";
   if (s.includes("pre_transit") || s.includes("unknown") || s.includes("info_received"))
     return "PENDING";

@@ -17,7 +17,7 @@ export async function runTrackingRefresh(trigger: "cron" | "manual") {
     const provider = await getTrackingProvider();
     if (provider.name !== "none") {
       const boxes = await prisma.box.findMany({
-        where: { status: { in: ["PENDING", "IN_TRANSIT", "DELAYED"] } },
+        where: { status: { in: ["PENDING", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELAYED"] } },
         include: { shipment: true },
       });
       for (const box of boxes) {

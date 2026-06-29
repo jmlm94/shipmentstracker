@@ -265,12 +265,13 @@ enum ShippingMethod {
 }
 
 enum BoxStatus {
-  PENDING        // submitted, not yet picked up / scanned by carrier ("Not shipped")
+  PENDING          // submitted, not yet picked up / scanned by carrier ("Not shipped")
   IN_TRANSIT
-  DELAYED        // stuck: customs / exception / no movement
-  DELIVERED      // arrived at warehouse per carrier
-  DAMAGED        // arrived damaged
-  ADDED_IN_STOCK // received & added to inventory (warehouse)
+  OUT_FOR_DELIVERY // on the delivery vehicle, arriving today
+  DELAYED          // stuck: customs / exception / no movement
+  DELIVERED        // arrived at warehouse per carrier
+  DAMAGED          // arrived damaged
+  ADDED_IN_STOCK   // received & added to inventory (warehouse)
   LOST
 
   @@schema("shipments")
