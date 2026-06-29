@@ -4,14 +4,24 @@ import { Logo } from "@/components/Logo";
 export const metadata = { title: "Submit a shipment · Shipments Tracker" };
 
 export default function SubmitPage() {
-  const company = process.env.NEXT_PUBLIC_COMPANY_NAME || "Carbinox";
+  // NEXT_PUBLIC_COMPANY_NAME may be set to a full URL; show a clean brand name
+  // as the title and render the domain as smaller subtext.
+  const raw = (process.env.NEXT_PUBLIC_COMPANY_NAME || "").trim();
+  const looksLikeUrl = /^https?:\/\//i.test(raw) || raw.includes(".");
+  const company = !raw || looksLikeUrl ? "Carbinox" : raw;
+  const site = looksLikeUrl
+    ? raw.replace(/^https?:\/\//i, "").replace(/\/+$/, "")
+    : "shopcarbinox.com";
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="bg-gradient-to-r from-orange-600 to-orange-500 text-white">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-3 sm:px-6">
           <Logo className="h-8 w-8" />
-          <span className="text-lg font-bold tracking-tight">{company}</span>
-          <span className="text-sm text-orange-100">· Supplier Shipment Intake</span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-lg font-bold tracking-tight">{company}</span>
+            <span className="text-[11px] text-orange-100">{site}</span>
+          </div>
+          <span className="ml-1 text-sm text-orange-100">· Supplier Shipment Intake</span>
         </div>
       </div>
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">

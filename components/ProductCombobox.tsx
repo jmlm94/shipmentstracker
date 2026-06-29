@@ -125,12 +125,18 @@ export function ProductCombobox({
                     }}
                     className="flex flex-col rounded-lg border border-slate-200 p-2 text-left transition hover:border-orange-400 hover:bg-orange-50"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={p.image}
-                      alt=""
-                      className="mb-1.5 h-24 w-full rounded-md object-cover sm:h-28"
-                    />
+                    {p.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.image}
+                        alt=""
+                        className="mb-1.5 h-24 w-full rounded-md object-cover sm:h-28"
+                      />
+                    ) : (
+                      <div className="mb-1.5 flex h-24 w-full items-center justify-center rounded-md bg-gradient-to-br from-slate-100 to-slate-200 text-2xl sm:h-28">
+                        📦
+                      </div>
+                    )}
                     <span className="line-clamp-2 text-xs font-medium leading-tight">{p.title}</span>
                     {p.sku && (
                       <span className="mt-0.5 truncate text-[11px] text-muted">{p.sku}</span>

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ALL_STATUSES, ATTENTION_STATUSES, STATUS_META } from "@/lib/status";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RefreshTrackingButton } from "@/components/RefreshTrackingButton";
+import { CountUp } from "@/components/CountUp";
 import { etaFor, daysUntil, daysSince, TERMINAL_STATUSES } from "@/lib/eta";
 
 export const dynamic = "force-dynamic";
@@ -117,11 +118,25 @@ export default async function OverviewPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-semibold">Overview</h1>
-          <p className="mt-1 text-sm text-muted">
-            {shipmentCount} shipments · {totalBoxes} boxes · {totalUnits} units
+          <h1 className="bg-gradient-to-r from-ink via-ink to-brand-600 bg-clip-text text-2xl font-bold text-transparent">
+            Overview
+          </h1>
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
+            <CountUp value={shipmentCount} className="font-semibold text-ink" /> shipments ·{" "}
+            <CountUp value={totalBoxes} className="font-semibold text-ink" /> boxes ·{" "}
+            <CountUp value={totalUnits} className="font-semibold text-ink" /> units
           </p>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+            <span className="relative flex h-2 w-2" title={syncStale ? "Tracking may be stale" : "Tracking live"}>
+              {!syncStale && (
+                <span className="absolute inline-flex h-full w-full animate-pulse-soft rounded-full bg-emerald-400" />
+              )}
+              <span
+                className={`relative inline-flex h-2 w-2 rounded-full ${
+                  syncStale ? "bg-amber-400" : "bg-emerald-500"
+                }`}
+              />
+            </span>
             <span className={syncStale ? "font-medium text-amber-600" : "text-muted"}>
               🔄 Tracking last refreshed:{" "}
               {latestSync
@@ -210,8 +225,8 @@ export default async function OverviewPage() {
             className="card group px-4 py-4 text-left hover:-translate-y-0.5 hover:shadow-card-hover"
           >
             <div className="flex items-center justify-between">
-              <span className="text-3xl font-bold tracking-tight">{counts[s] || 0}</span>
-              <span className="text-lg opacity-80 transition group-hover:scale-110">
+              <CountUp value={counts[s] || 0} className="text-3xl font-bold tracking-tight" />
+              <span className="text-lg opacity-80 transition group-hover:-translate-y-0.5 group-hover:scale-125">
                 {STATUS_META[s].emoji}
               </span>
             </div>

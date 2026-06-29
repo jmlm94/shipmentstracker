@@ -13,6 +13,24 @@ type Item = {
   sku: string;
   quantity: string;
   unitCost: string;
+  receivedQty: string;
+};
+
+type CostRow = { label: string; amount: string };
+type OtherRow = { label: string; amount: string; sign: "+" | "-" };
+
+export type OrderFormInitial = {
+  id: string;
+  supplierName: string;
+  supplierEmail: string;
+  supplierContact: string;
+  orderDate: string; // yyyy-mm-dd
+  expectedDate: string; // yyyy-mm-dd or ""
+  currency: string;
+  notes: string;
+  items: Item[];
+  shippingCosts: CostRow[];
+  otherCosts: OtherRow[];
 };
 
 const emptyItem = (): Item => ({
@@ -22,10 +40,12 @@ const emptyItem = (): Item => ({
   sku: "",
   quantity: "",
   unitCost: "",
+  receivedQty: "",
 });
 
-export function OrderForm() {
+export function OrderForm({ initial }: { initial?: OrderFormInitial }) {
   const router = useRouter();
+  const editing = !!initial;
 
   const today = (() => {
     const n = new Date();
@@ -34,17 +54,16 @@ export function OrderForm() {
     ).padStart(2, "0")}`;
   })();
 
-  const [supplierName, setSupplierName] = useState("");
-  const [supplierEmail, setSupplierEmail] = useState("");
-  const [supplierContact, setSupplierContact] = useState("");
-  const [orderDate, setOrderDate] = useState(today);
-  const [expectedDate, setExpectedDate] = useState("");
-  const [currency, setCurrency] = useState("USD");
-  const [shippingCost, setShippingCost] = useState("");
-  const [otherCost, setOtherCost] = useState("");
-  const [otherCostLabel, setOtherCostLabel] = useState("");
-  const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<Item[]>([emptyItem()]);
+  const [supplierName, setSupplierName] = useState(initial?.supplierName ?? "");
+  const [supplierEmail, setSupplierEmail] = useState(initial?.supplierEmail ?? "");
+  const [supplierContact, setSupplierContact] = useState(initial?.supplierContact ?? "");
+  const [orderDate, setOrderDate] = useState(initial?.orderDate ?? today);
+  const [expectedDate, setExpectedDate] = useState(initial?.expectedDate ?? "");
+  const [currency, setCurrency] = useState(initial?.currency ?? "USD");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [items, setItems] = useState<Item[]>(initial?.items?.length ? initial.items : [emptyItem()]);
+  const [shippingCosts, setShippingCosts] = useState<CostRow[]>(initial?.shippingCosts ?? []);
+  const [otherCosts, setOtherCosts] = useState<OtherRow[]>(initial?.otherCosts ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,7 +78,38 @@ export function OrderForm() {
     () => items.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unitCost) || 0), 0),
     [items]
   );
-  const total = subtotal + (Number(shippingCost) || 0) + (Number(otherCost) || 0);
+  const shippingTotal = useMemo(
+    () => shippingCosts.reduce((s, c) => s + (Number(c.amount) || 0), 0),
+    [shippingCosts]
+  );
+  const otherTotal = useMemo(
+    () =>
+      otherCosts.reduce(
+        (s, c) => s + (c.sign === "-" ? -1 : 1) * (Number(c.amount) || 0),
+        0
+      ),
+    [otherCosts]
+  );
+  const total = subtotal + shippingTotal + otherTotal;
+
+  function buildCosts() {
+    const costs: { kind: "SHIPPING" | "OTHER"; label: string; amount: number }[] = [];
+    shippingCosts.forEach((c) => {
+      const amount = Number(c.amount) || 0;
+      if (amount === 0 && !c.label.trim()) return;
+      costs.push({ kind: "SHIPPING", label: c.label.trim() || "Shipping", amount });
+    });
+    otherCosts.forEach((c) => {
+      const mag = Number(c.amount) || 0;
+      if (mag === 0 && !c.label.trim()) return;
+      costs.push({
+        kind: "OTHER",
+        label: c.label.trim() || (c.sign === "-" ? "Credit" : "Other"),
+        amount: (c.sign === "-" ? -1 : 1) * mag,
+      });
+    });
+    return costs;
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,38 +117,42 @@ export function OrderForm() {
     if (!supplierName.trim()) return setError("Supplier name is required.");
     if (items.some((it) => !it.productId || !it.quantity))
       return setError("Each line needs a product and a quantity.");
+
     setSaving(true);
-    const res = await fetch("/api/orders", {
-      method: "POST",
+    const body = {
+      supplierName,
+      supplierEmail,
+      supplierContact,
+      orderDate,
+      expectedDate: expectedDate || null,
+      currency,
+      notes,
+      items: items.map((it) => ({
+        productId: it.productId,
+        productName: it.productName,
+        productImage: it.productImage,
+        sku: it.sku,
+        quantity: it.quantity || 0,
+        unitCost: it.unitCost || 0,
+        receivedQty: it.receivedQty || 0,
+      })),
+      costs: buildCosts(),
+    };
+
+    const res = await fetch(editing ? `/api/orders/${initial!.id}` : "/api/orders", {
+      method: editing ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        supplierName,
-        supplierEmail,
-        supplierContact,
-        orderDate,
-        expectedDate: expectedDate || null,
-        currency,
-        shippingCost: shippingCost || 0,
-        otherCost: otherCost || 0,
-        otherCostLabel,
-        notes,
-        items: items.map((it) => ({
-          productId: it.productId,
-          productName: it.productName,
-          productImage: it.productImage,
-          sku: it.sku,
-          quantity: it.quantity || 0,
-          unitCost: it.unitCost || 0,
-        })),
-      }),
+      body: JSON.stringify(body),
     });
     setSaving(false);
     if (res.ok) {
-      const d = await res.json();
-      router.push(`/dashboard/orders/${d.id}`);
+      const d = await res.json().catch(() => ({}));
+      const id = editing ? initial!.id : d.id;
+      router.push(`/dashboard/orders/${id}`);
+      router.refresh();
     } else {
       const d = await res.json().catch(() => ({}));
-      setError(d.error || "Could not create the order.");
+      setError(d.error || "Could not save the order.");
     }
   }
 
@@ -158,7 +212,11 @@ export function OrderForm() {
             return (
               <div
                 key={i}
-                className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-[2fr_0.8fr_0.9fr_0.9fr_auto] sm:items-end"
+                className={`grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 sm:items-end ${
+                  editing
+                    ? "sm:grid-cols-[2fr_0.7fr_0.8fr_0.8fr_0.9fr_auto]"
+                    : "sm:grid-cols-[2fr_0.8fr_0.9fr_0.9fr_auto]"
+                }`}
               >
                 <div>
                   <label className="label sm:hidden">Product</label>
@@ -175,6 +233,12 @@ export function OrderForm() {
                   <label className="label">Unit cost</label>
                   <input className="input" type="number" min={0} step="0.01" value={it.unitCost} onChange={(e) => setItem(i, { unitCost: e.target.value })} />
                 </div>
+                {editing && (
+                  <div>
+                    <label className="label">Received</label>
+                    <input className="input" type="number" min={0} value={it.receivedQty} onChange={(e) => setItem(i, { receivedQty: e.target.value })} placeholder="0" />
+                  </div>
+                )}
                 <div>
                   <label className="label">Line total</label>
                   <div className="px-1 py-2 text-sm font-medium">{money(lineTotal, currency)}</div>
@@ -196,25 +260,155 @@ export function OrderForm() {
         </button>
       </section>
 
-      {/* Costs + notes */}
+      {/* Costs */}
       <section className="card p-5">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div>
-            <label className="label">Notes / terms</label>
-            <textarea className="input" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Payment terms, incoterms, anything else" />
+          {/* Cost editors */}
+          <div className="space-y-5">
+            {/* Shipping costs */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">🚚 Shipping costs</h3>
+                <button
+                  type="button"
+                  onClick={() => setShippingCosts((p) => [...p, { label: "", amount: "" }])}
+                  className="text-xs font-medium text-blue-600 hover:underline"
+                >
+                  + Add shipping cost
+                </button>
+              </div>
+              <p className="mb-2 text-xs text-muted">
+                Add one per shipment when an order ships in several batches.
+              </p>
+              {shippingCosts.length === 0 && (
+                <p className="text-xs text-slate-400">No shipping costs yet.</p>
+              )}
+              <div className="space-y-2">
+                {shippingCosts.map((c, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      className="input flex-1"
+                      placeholder="Description (e.g. Sea freight — DHL)"
+                      value={c.label}
+                      onChange={(e) =>
+                        setShippingCosts((p) => p.map((x, idx) => (idx === i ? { ...x, label: e.target.value } : x)))
+                      }
+                    />
+                    <input
+                      className="input w-28 text-right"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="0.00"
+                      value={c.amount}
+                      onChange={(e) =>
+                        setShippingCosts((p) => p.map((x, idx) => (idx === i ? { ...x, amount: e.target.value } : x)))
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShippingCosts((p) => p.filter((_, idx) => idx !== i))}
+                      className="text-xs text-red-600 hover:underline"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Other costs & credits */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">➕➖ Other costs &amp; credits</h3>
+                <button
+                  type="button"
+                  onClick={() => setOtherCosts((p) => [...p, { label: "", amount: "", sign: "+" }])}
+                  className="text-xs font-medium text-blue-600 hover:underline"
+                >
+                  + Add cost / credit
+                </button>
+              </div>
+              <p className="mb-2 text-xs text-muted">
+                Use <strong>+</strong> for extra charges (duties, samples) and{" "}
+                <strong>−</strong> for credits / discounts. Describe each one.
+              </p>
+              {otherCosts.length === 0 && (
+                <p className="text-xs text-slate-400">No other costs or credits yet.</p>
+              )}
+              <div className="space-y-2">
+                {otherCosts.map((c, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="inline-flex overflow-hidden rounded border border-slate-300">
+                      {(["+", "-"] as const).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() =>
+                            setOtherCosts((p) => p.map((x, idx) => (idx === i ? { ...x, sign: s } : x)))
+                          }
+                          className={`px-2.5 py-1.5 text-sm font-semibold ${
+                            c.sign === s
+                              ? s === "-"
+                                ? "bg-emerald-600 text-white"
+                                : "bg-orange-600 text-white"
+                              : "bg-white text-slate-500"
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </span>
+                    <input
+                      className="input flex-1"
+                      placeholder={c.sign === "-" ? "What's the credit? (e.g. defect refund)" : "What's the cost? (e.g. customs duty)"}
+                      value={c.label}
+                      onChange={(e) =>
+                        setOtherCosts((p) => p.map((x, idx) => (idx === i ? { ...x, label: e.target.value } : x)))
+                      }
+                    />
+                    <input
+                      className="input w-28 text-right"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="0.00"
+                      value={c.amount}
+                      onChange={(e) =>
+                        setOtherCosts((p) => p.map((x, idx) => (idx === i ? { ...x, amount: e.target.value } : x)))
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setOtherCosts((p) => p.filter((_, idx) => idx !== i))}
+                      className="text-xs text-red-600 hover:underline"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5">
+                <label className="label">Notes / terms</label>
+                <textarea className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Payment terms, incoterms, anything else" />
+              </div>
+            </div>
           </div>
-          <div className="space-y-2">
+
+          {/* Totals */}
+          <div className="space-y-2 lg:border-l lg:border-slate-100 lg:pl-6">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted">Subtotal</span>
               <span className="font-medium">{money(subtotal, currency)}</span>
             </div>
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <span className="text-muted">Shipping cost</span>
-              <input className="input w-32 text-right" type="number" min={0} step="0.01" value={shippingCost} onChange={(e) => setShippingCost(e.target.value)} placeholder="0.00" />
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted">Shipping ({shippingCosts.length})</span>
+              <span>{money(shippingTotal, currency)}</span>
             </div>
-            <div className="flex items-center justify-between gap-2 text-sm">
-              <input className="input w-40" value={otherCostLabel} onChange={(e) => setOtherCostLabel(e.target.value)} placeholder="Other cost (label)" />
-              <input className="input w-32 text-right" type="number" min={0} step="0.01" value={otherCost} onChange={(e) => setOtherCost(e.target.value)} placeholder="0.00" />
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted">Other / credits ({otherCosts.length})</span>
+              <span className={otherTotal < 0 ? "text-emerald-600" : ""}>{money(otherTotal, currency)}</span>
             </div>
             <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-base font-semibold">
               <span>Total</span>
@@ -226,7 +420,7 @@ export function OrderForm() {
 
       <div className="flex justify-end">
         <button className="btn" disabled={saving}>
-          {saving ? "Creating…" : "Create purchase order"}
+          {saving ? "Saving…" : editing ? "Save changes" : "Create purchase order"}
         </button>
       </div>
     </form>

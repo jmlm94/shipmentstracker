@@ -1,9 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-export function PoActions({ id, code, status }: { id: string; code: string; status: string }) {
+export function PoActions({
+  id,
+  code,
+  status,
+  hasShipments,
+}: {
+  id: string;
+  code: string;
+  status: string;
+  hasShipments: boolean;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -18,6 +29,13 @@ export function PoActions({ id, code, status }: { id: string; code: string; stat
     router.refresh();
   }
 
+  async function syncReceived() {
+    setBusy(true);
+    await fetch(`/api/orders/${id}/sync-received`, { method: "POST" });
+    setBusy(false);
+    router.refresh();
+  }
+
   async function remove() {
     if (!confirm(`Delete ${code}? Linked shipments are kept but unlinked.`)) return;
     setBusy(true);
@@ -28,13 +46,25 @@ export function PoActions({ id, code, status }: { id: string; code: string; stat
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
-      {status !== "RECEIVED" && (
+      <Link href={`/dashboard/orders/${id}/edit`} className="btn-secondary">
+        ✏️ Edit
+      </Link>
+      {hasShipments && (
+        <button onClick={syncReceived} disabled={busy} className="btn-secondary">
+          🔄 Sync received
+        </button>
+      )}
+      {status === "RECEIVED" ? (
+        <button onClick={() => setStatus("OPEN")} disabled={busy} className="btn-secondary">
+          ↩️ Unmark received
+        </button>
+      ) : (
         <button onClick={() => setStatus("RECEIVED")} disabled={busy} className="btn-secondary">
           ✅ Mark received
         </button>
       )}
       {status === "CANCELLED" ? (
-        <button onClick={() => setStatus("OPEN")} disabled={busy} className="btn-secondary">
+        <button onClick={() => setStatus("OPEN")} disabled={busy} className="text-blue-600 hover:underline">
           Reopen
         </button>
       ) : (

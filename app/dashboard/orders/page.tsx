@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { PO_STATUS_META, money } from "@/lib/poStatus";
+import { PO_STATUS_META, money, unifyCosts } from "@/lib/poStatus";
 
 export const dynamic = "force-dynamic";
 
 export default async function OrdersPage() {
   const orders = await prisma.purchaseOrder.findMany({
     orderBy: { createdAt: "desc" },
-    include: { items: true, _count: { select: { shipments: true } } },
+    include: { items: true, costs: true, _count: { select: { shipments: true } } },
   });
 
   return (
@@ -33,7 +33,7 @@ export default async function OrdersPage() {
         )}
         {orders.map((o) => {
           const subtotal = o.items.reduce((s, it) => s + it.quantity * it.unitCost, 0);
-          const total = subtotal + o.shippingCost + o.otherCost;
+          const total = subtotal + unifyCosts(o).reduce((s, c) => s + c.amount, 0);
           const units = o.items.reduce((s, it) => s + it.quantity, 0);
           const meta = PO_STATUS_META[o.status];
           return (

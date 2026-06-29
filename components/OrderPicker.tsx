@@ -22,15 +22,34 @@ export function OrderPicker({
   const [manual, setManual] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Refetch every time the picker opens so a PO created moments ago shows up.
   useEffect(() => {
-    if (open && orders.length === 0) {
-      fetch("/api/public/orders")
-        .then((r) => r.json())
-        .then((d) => setOrders(d.orders || []))
-        .catch(() => setOrders([]));
-    }
-  }, [open, orders.length]);
+    if (!open) return;
+    let active = true;
+    setLoading(true);
+    setLoadError(null);
+    fetch("/api/public/orders", { cache: "no-store" })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((d) => {
+        if (!active) return;
+        setOrders(d.orders || []);
+      })
+      .catch((e) => {
+        if (!active) return;
+        setLoadError("Couldn't load orders. Check your connection and try again.");
+        console.error("OrderPicker load failed:", e);
+      })
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [open]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -111,10 +130,18 @@ export function OrderPicker({
               </button>
             </div>
             <div className="overflow-auto p-2">
-              {results.length === 0 && (
+              {loading && (
+                <div className="px-3 py-6 text-center text-sm text-muted">Loading orders…</div>
+              )}
+              {loadError && !loading && (
+                <div className="px-3 py-6 text-center text-sm text-red-600">{loadError}</div>
+              )}
+              {!loading && !loadError && results.length === 0 && (
                 <div className="px-3 py-6 text-center text-sm text-muted">
-                  No matching open orders. Use &quot;enter a PO number manually&quot; if you
-                  don&apos;t see yours.
+                  {orders.length === 0
+                    ? "No open purchase orders yet."
+                    : "No orders match your search."}{" "}
+                  Use &quot;enter a PO number manually&quot; if you don&apos;t see yours.
                 </div>
               )}
               {results.map((o) => (

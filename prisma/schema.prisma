@@ -54,6 +54,8 @@ model PurchaseOrder {
   orderDate       DateTime @default(now())
   expectedDate    DateTime?
   currency        String   @default("USD")
+  // Legacy single-cost columns (kept for back-compat with orders created before
+  // multi-cost support). New/edited orders store costs in PurchaseOrderCost.
   shippingCost    Float    @default(0)
   otherCost       Float    @default(0)
   otherCostLabel  String?
@@ -62,6 +64,7 @@ model PurchaseOrder {
   updatedAt       DateTime @updatedAt
 
   items           PurchaseOrderItem[]
+  costs           PurchaseOrderCost[]
   shipments       Shipment[]
 
   @@index([status])
@@ -79,8 +82,32 @@ model PurchaseOrderItem {
   sku             String?
   quantity        Int
   unitCost        Float   @default(0)
+  receivedQty     Int     @default(0)  // units received so far (manual + synced from shipments)
 
   @@index([purchaseOrderId])
+  @@schema("shipments")
+}
+
+// A cost line on a purchase order. Orders can have several shipping costs (one
+// per physical shipment) and several "other" costs that may be charges (+) or
+// credits (-, stored as a negative amount), each with its own description.
+model PurchaseOrderCost {
+  id              String  @id @default(cuid())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  purchaseOrderId String
+  kind            PoCostKind
+  label           String
+  amount          Float   @default(0)  // negative = credit
+  sort            Int     @default(0)
+
+  @@index([purchaseOrderId])
+  @@schema("shipments")
+}
+
+enum PoCostKind {
+  SHIPPING
+  OTHER
+
   @@schema("shipments")
 }
 

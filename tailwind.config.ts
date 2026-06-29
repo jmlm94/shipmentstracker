@@ -36,9 +36,30 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(6px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        aurora: {
+          "0%, 100%": { transform: "translate(0px, 0px) scale(1)" },
+          "33%": { transform: "translate(30px, -30px) scale(1.1)" },
+          "66%": { transform: "translate(-20px, 20px) scale(0.95)" },
+        },
+        "aurora-slow": {
+          "0%, 100%": { transform: "translate(0px, 0px) scale(1)" },
+          "50%": { transform: "translate(-40px, 30px) scale(1.15)" },
+        },
+        "pulse-soft": {
+          "0%, 100%": { opacity: "1", transform: "scale(1)" },
+          "50%": { opacity: "0.55", transform: "scale(0.85)" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
       },
       animation: {
         "fade-in-up": "fade-in-up 0.35s ease-out both",
+        aurora: "aurora 18s ease-in-out infinite",
+        "aurora-slow": "aurora-slow 24s ease-in-out infinite",
+        "pulse-soft": "pulse-soft 2s ease-in-out infinite",
+        shimmer: "shimmer 2.2s linear infinite",
       },
     },
   },

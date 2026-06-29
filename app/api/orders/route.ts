@@ -1,37 +1,12 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
 import { poCodeFor } from "@/lib/code";
-
-const schema = z.object({
-  supplierName: z.string().trim().min(1, "Supplier is required").max(120),
-  supplierEmail: z.string().trim().email().optional().or(z.literal("")),
-  supplierContact: z.string().trim().max(200).optional().or(z.literal("")),
-  orderDate: z.string().optional().nullable(),
-  expectedDate: z.string().optional().nullable(),
-  currency: z.string().trim().max(8).optional(),
-  shippingCost: z.coerce.number().min(0).optional(),
-  otherCost: z.coerce.number().min(0).optional(),
-  otherCostLabel: z.string().trim().max(80).optional().or(z.literal("")),
-  notes: z.string().trim().max(2000).optional().or(z.literal("")),
-  items: z
-    .array(
-      z.object({
-        productId: z.string().trim().min(1),
-        productName: z.string().trim().min(1).max(200),
-        productImage: z.string().trim().max(500).optional().or(z.literal("")),
-        sku: z.string().trim().max(80).optional().or(z.literal("")),
-        quantity: z.coerce.number().int().positive(),
-        unitCost: z.coerce.number().min(0),
-      })
-    )
-    .min(1, "Add at least one product"),
-});
+import { orderBodySchema } from "@/lib/po";
 
 export async function POST(req: Request) {
   if (!isAuthed()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const parsed = schema.safeParse(await req.json().catch(() => null));
+  const parsed = orderBodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.issues[0]?.message || "Invalid input" },
@@ -56,9 +31,6 @@ export async function POST(req: Request) {
       orderDate: d.orderDate ? new Date(d.orderDate) : new Date(),
       expectedDate: d.expectedDate ? new Date(d.expectedDate) : null,
       currency: d.currency || "USD",
-      shippingCost: d.shippingCost ?? 0,
-      otherCost: d.otherCost ?? 0,
-      otherCostLabel: d.otherCostLabel || null,
       notes: d.notes || null,
       items: {
         create: d.items.map((it) => ({
@@ -68,6 +40,15 @@ export async function POST(req: Request) {
           sku: it.sku || null,
           quantity: it.quantity,
           unitCost: it.unitCost,
+          receivedQty: it.receivedQty ?? 0,
+        })),
+      },
+      costs: {
+        create: d.costs.map((c, i) => ({
+          kind: c.kind,
+          label: c.label,
+          amount: c.amount,
+          sort: i,
         })),
       },
     },
