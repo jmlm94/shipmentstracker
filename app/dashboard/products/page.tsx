@@ -26,8 +26,9 @@ export default async function ProductsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">🛍️ Products</h1>
         <p className="mt-1 text-sm text-muted">
-          The catalog suppliers pick from on the smart form. Edit a name below and
-          it updates everywhere — including the supplier form.
+          The catalog suppliers pick from on the smart form. Rename a product or
+          click its thumbnail to upload a photo — changes update everywhere,
+          including the supplier form.
         </p>
       </div>
 
@@ -36,8 +37,7 @@ export default async function ProductsPage() {
       </div>
 
       <div className="mb-3 text-sm text-muted">
-        {products.length} products · click the ✏️ to rename one (changes show on the
-        supplier form too).
+        {products.length} products · ✏️ rename · 📷 click a thumbnail to upload a photo.
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">

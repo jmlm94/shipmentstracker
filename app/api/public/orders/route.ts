@@ -9,15 +9,27 @@ export async function GET() {
   const orders = await prisma.purchaseOrder.findMany({
     where: { status: { in: ["OPEN", "PARTIALLY_RECEIVED"] } },
     orderBy: { createdAt: "desc" },
-    include: { items: { select: { productName: true, quantity: true } } },
+    include: {
+      items: { select: { productName: true, productImage: true, sku: true, quantity: true } },
+    },
   });
 
+  // Public, supplier-facing — expose enough to confirm the order (products,
+  // quantities, dates) but NOT internal pricing/costs.
   return NextResponse.json({
     orders: orders.map((o) => ({
       id: o.id,
       code: o.code,
       supplierName: o.supplierName,
-      items: o.items.map((it) => ({ name: it.productName, qty: it.quantity })),
+      orderDate: o.orderDate.toISOString().slice(0, 10),
+      expectedDate: o.expectedDate ? o.expectedDate.toISOString().slice(0, 10) : null,
+      totalUnits: o.items.reduce((s, it) => s + it.quantity, 0),
+      items: o.items.map((it) => ({
+        name: it.productName,
+        image: it.productImage || "",
+        sku: it.sku || "",
+        qty: it.quantity,
+      })),
     })),
   });
 }

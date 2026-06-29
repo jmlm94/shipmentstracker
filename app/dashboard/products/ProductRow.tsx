@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function ProductRow({
@@ -15,9 +15,28 @@ export function ProductRow({
   image: string;
 }) {
   const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  async function uploadImage(file: File) {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await fetch(`/api/products/${id}/image`, { method: "POST", body: fd });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || "Could not upload the image.");
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function save() {
     const trimmed = value.trim();
@@ -54,14 +73,36 @@ export function ProductRow({
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-slate-200 p-2">
-      {image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={image} alt="" className="h-11 w-11 shrink-0 rounded object-cover" />
-      ) : (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-slate-100 text-xs text-slate-400">
-          —
-        </div>
-      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) uploadImage(f);
+          e.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading}
+        title={image ? "Change image" : "Upload image"}
+        className="group relative h-11 w-11 shrink-0 overflow-hidden rounded border border-slate-200"
+      >
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={image} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-slate-100 text-base text-slate-400">
+            📷
+          </div>
+        )}
+        <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-[10px] font-medium text-transparent transition group-hover:bg-black/50 group-hover:text-white">
+          {uploading ? "…" : image ? "Change" : "Add"}
+        </span>
+      </button>
 
       <div className="min-w-0 flex-1">
         {editing ? (
