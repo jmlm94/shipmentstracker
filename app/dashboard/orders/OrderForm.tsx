@@ -14,13 +14,14 @@ type Item = {
   quantity: string;
   unitCost: string;
   receivedQty: string;
+  hint?: string; // raw name from an imported invoice when no catalog match was found
 };
 
 type CostRow = { label: string; amount: string };
 type OtherRow = { label: string; amount: string; sign: "+" | "-" };
 
 export type OrderFormInitial = {
-  id: string;
+  id?: string; // present = edit an existing PO; absent = create-mode prefill (e.g. from an invoice)
   supplierName: string;
   supplierEmail: string;
   supplierContact: string;
@@ -45,7 +46,7 @@ const emptyItem = (): Item => ({
 
 export function OrderForm({ initial }: { initial?: OrderFormInitial }) {
   const router = useRouter();
-  const editing = !!initial;
+  const editing = !!initial?.id;
 
   const today = (() => {
     const n = new Date();
@@ -224,6 +225,11 @@ export function OrderForm({ initial }: { initial?: OrderFormInitial }) {
                     selected={{ productId: it.productId, productName: it.productName, productImage: it.productImage, productSku: it.sku }}
                     onSelect={(p) => pick(i, p)}
                   />
+                  {it.hint && !it.productId && (
+                    <p className="mt-1 text-xs text-amber-600">
+                      📄 From invoice: “{it.hint}” — pick the matching product
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="label">Quantity</label>

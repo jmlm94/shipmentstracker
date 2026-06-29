@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { OrderForm } from "../OrderForm";
+import { NewOrderClient } from "../NewOrderClient";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +14,10 @@ export default function NewOrderPage() {
         <p className="mt-1 text-sm text-muted">
           Create the order before goods ship. It gets a PO number that suppliers
           locate on the intake form, so their shipment matches what you ordered.
+          Or <strong>import an invoice</strong> below to fill it in automatically.
         </p>
       </div>
-      <OrderForm />
+      <NewOrderClient />
     </div>
   );
 }
