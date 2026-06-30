@@ -8,20 +8,19 @@ export default function SubmitPage() {
   // as the title and render the domain as smaller subtext.
   const raw = (process.env.NEXT_PUBLIC_COMPANY_NAME || "").trim();
   const looksLikeUrl = /^https?:\/\//i.test(raw) || raw.includes(".");
-  const company = !raw || looksLikeUrl ? "Carbinox" : raw;
   const site = looksLikeUrl
     ? raw.replace(/^https?:\/\//i, "").replace(/\/+$/, "")
     : "shopcarbinox.com";
   return (
     <div className="min-h-screen bg-paper">
       <div className="bg-ink text-white">
-        <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-3 sm:px-6">
-          <Logo className="h-8 w-8" />
-          <div className="flex flex-col leading-tight">
-            <span className="font-display text-lg font-bold uppercase tracking-tight">{company}</span>
-            <span className="text-[11px] text-white/60">{site}</span>
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3.5 sm:px-6">
+          <Logo className="h-6 w-auto" />
+          <span className="hidden h-5 w-px bg-white/20 sm:block" />
+          <div className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate text-sm text-white/70">Supplier Shipment Intake</span>
+            <span className="text-[11px] text-white/45">{site}</span>
           </div>
-          <span className="ml-1 text-sm text-white/60">· Supplier Shipment Intake</span>
         </div>
       </div>
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">

@@ -6,13 +6,14 @@ import { RefreshTrackingButton } from "@/components/RefreshTrackingButton";
 import { TestSlackButton } from "@/components/TestSlackButton";
 import { TestEasyPostButton } from "@/components/TestEasyPostButton";
 import { CountUp } from "@/components/CountUp";
+import { Logo } from "@/components/Logo";
 import { etaFor, daysUntil, daysSince, TERMINAL_STATUSES } from "@/lib/eta";
 
 export const dynamic = "force-dynamic";
 
 
 export default async function OverviewPage() {
-  const [grouped, shipmentCount, recent, unitsAgg, discrepancyCount] =
+  const [grouped, shipmentCount, recent, unitsAgg, discrepancyCount, poGroups, inStockAgg] =
     await Promise.all([
       prisma.box.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.shipment.count(),
@@ -23,6 +24,11 @@ export default async function OverviewPage() {
       }),
       prisma.box.aggregate({ _sum: { unitsPerBox: true } }),
       prisma.box.count({ where: { hasDiscrepancy: true } }),
+      prisma.purchaseOrder.groupBy({ by: ["status"], _count: { _all: true } }),
+      prisma.box.aggregate({
+        _sum: { unitsPerBox: true },
+        where: { status: "ADDED_IN_STOCK" },
+      }),
     ]);
 
   const expected = await prisma.expectedArrival.findMany({
@@ -64,6 +70,13 @@ export default async function OverviewPage() {
   const totalBoxes = grouped.reduce((s, g) => s + g._count._all, 0);
   const totalUnits = unitsAgg._sum.unitsPerBox || 0;
   const attentionCount = ATTENTION_STATUSES.reduce((s, st) => s + (counts[st] || 0), 0);
+
+  // Headline KPIs for the hero band.
+  const poCounts = Object.fromEntries(poGroups.map((g) => [g.status, g._count._all]));
+  const inTransitBoxes = (counts.IN_TRANSIT || 0) + (counts.OUT_FOR_DELIVERY || 0);
+  const openOrders =
+    (poCounts.DRAFT || 0) + (poCounts.OPEN || 0) + (poCounts.PARTIALLY_RECEIVED || 0);
+  const inStockUnits = inStockAgg._sum.unitsPerBox || 0;
 
   // Per-supplier metrics for the breakdown table. Pull every box once and group
   // in memory — running one findMany per supplier opened a DB connection per
@@ -124,45 +137,100 @@ export default async function OverviewPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold text-ink">Overview</h1>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
-            <CountUp value={shipmentCount} className="font-semibold text-ink" /> shipments ·{" "}
-            <CountUp value={totalBoxes} className="font-semibold text-ink" /> boxes ·{" "}
-            <CountUp value={totalUnits} className="font-semibold text-ink" /> units
-          </p>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-            <span className="relative flex h-2 w-2" title={syncStale ? "Tracking may be stale" : "Tracking live"}>
-              {!syncStale && (
-                <span className="absolute inline-flex h-full w-full animate-pulse-soft rounded-full bg-emerald-400" />
-              )}
-              <span
-                className={`relative inline-flex h-2 w-2 rounded-full ${
-                  syncStale ? "bg-amber-400" : "bg-emerald-500"
-                }`}
-              />
-            </span>
-            <span className={syncStale ? "font-medium text-amber-600" : "text-muted"}>
-              🔄 Tracking last refreshed:{" "}
-              {latestSync
-                ? `${latestSync.startedAt.toISOString().slice(0, 16).replace("T", " ")} UTC`
-                : "never"}
-              {syncStale ? " (may be stale)" : ""}
-            </span>
+      {/* Brand hero with headline KPIs */}
+      <section className="mb-6 overflow-hidden rounded-2xl bg-ink text-white">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 pt-6 sm:px-8">
+          <div>
+            <Logo className="h-6 w-auto" />
+            <p className="mt-2 text-sm text-white/55">
+              <CountUp value={shipmentCount} className="font-semibold text-white" /> shipments ·{" "}
+              <CountUp value={totalBoxes} className="font-semibold text-white" /> boxes ·{" "}
+              <CountUp value={totalUnits} className="font-semibold text-white" /> units tracked
+            </p>
+          </div>
+          <Link
+            href="/dashboard/shipments"
+            className="rounded-lg bg-white/10 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+          >
+            View all shipments →
+          </Link>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-px bg-white/10 lg:grid-cols-4">
+          {[
+            {
+              label: "In transit",
+              value: inTransitBoxes,
+              sub: "boxes on the way",
+              href: "/dashboard/shipments?status=IN_TRANSIT",
+              accent: "text-white",
+            },
+            {
+              label: "Overdue",
+              value: overdueShipments.length,
+              sub: "past their ETA",
+              href: "#overdue",
+              accent: overdueShipments.length > 0 ? "text-accent" : "text-white",
+            },
+            {
+              label: "Open orders",
+              value: openOrders,
+              sub: "not fully received",
+              href: "/dashboard/orders",
+              accent: "text-white",
+            },
+            {
+              label: "In stock",
+              value: inStockUnits,
+              sub: "units received",
+              href: "/dashboard/shipments?status=ADDED_IN_STOCK",
+              accent: "text-brand-500",
+            },
+          ].map((k) => (
+            <Link
+              key={k.label}
+              href={k.href}
+              className="group bg-ink px-6 py-5 transition hover:bg-carbon sm:px-8"
+            >
+              <div className="text-[11px] font-medium uppercase tracking-wide text-white/45">
+                {k.label}
+              </div>
+              <CountUp value={k.value} className={`mt-1 block text-3xl font-bold tracking-tight ${k.accent}`} />
+              <div className="mt-0.5 text-xs text-white/45">{k.sub}</div>
+            </Link>
+          ))}
+        </div>
+
+        {/* Tracking status + integration tools */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-white/10 px-6 py-3 text-xs sm:px-8">
+          <span className="relative flex h-2 w-2" title={syncStale ? "Tracking may be stale" : "Tracking live"}>
+            {!syncStale && (
+              <span className="absolute inline-flex h-full w-full animate-pulse-soft rounded-full bg-emerald-400" />
+            )}
+            <span
+              className={`relative inline-flex h-2 w-2 rounded-full ${
+                syncStale ? "bg-amber-400" : "bg-emerald-500"
+              }`}
+            />
+          </span>
+          <span className={syncStale ? "font-medium text-amber-300" : "text-white/55"}>
+            Tracking last refreshed:{" "}
+            {latestSync
+              ? `${latestSync.startedAt.toISOString().slice(0, 16).replace("T", " ")} UTC`
+              : "never"}
+            {syncStale ? " (may be stale)" : ""}
+          </span>
+          <span className="ml-auto flex flex-wrap items-center gap-2">
             <RefreshTrackingButton />
             <TestSlackButton />
             <TestEasyPostButton />
-          </p>
+          </span>
         </div>
-        <Link href="/dashboard/shipments" className="btn-secondary">
-          View all shipments →
-        </Link>
-      </div>
+      </section>
 
       {/* Overdue alerts */}
       {overdueShipments.length > 0 && (
-        <div className="mb-6 rounded-xl border border-red-300 bg-red-50 p-4">
+        <div id="overdue" className="mb-6 scroll-mt-6 rounded-xl border border-red-300 bg-red-50 p-4">
           <div className="mb-2 font-semibold text-red-900">
             🚨 {overdueShipments.length} overdue shipment{overdueShipments.length === 1 ? "" : "s"}
           </div>
@@ -225,6 +293,9 @@ export default async function OverviewPage() {
       )}
 
       {/* Global status tiles */}
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+        Boxes by status
+      </h2>
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
         {ALL_STATUSES.map((s) => (
           <Link

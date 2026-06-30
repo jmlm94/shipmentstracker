@@ -77,11 +77,8 @@ export function DashboardNav({ authDisabled }: { authDisabled: boolean }) {
     <>
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen flex-col bg-ink px-3 py-5 lg:flex">
-        <Link href="/dashboard" className="mb-6 flex items-center gap-2 px-2 text-white">
-          <Logo className="h-7 w-7" />
-          <span className="font-display text-[17px] font-bold uppercase tracking-tight text-white">
-            Carbinox
-          </span>
+        <Link href="/dashboard" className="mb-6 flex items-center px-2 text-white">
+          <Logo className="h-5 w-auto" />
         </Link>
         <NavLinks />
         <SignOut disabled={authDisabled} />
@@ -89,9 +86,8 @@ export function DashboardNav({ authDisabled }: { authDisabled: boolean }) {
 
       {/* Mobile top bar */}
       <div className="sticky top-0 z-30 flex items-center justify-between bg-ink px-4 py-3 lg:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2 text-white">
-          <Logo className="h-6 w-6" />
-          <span className="font-display font-bold uppercase tracking-tight text-white">Carbinox</span>
+        <Link href="/dashboard" className="flex items-center text-white">
+          <Logo className="h-5 w-auto" />
         </Link>
         <button
           onClick={() => setOpen(true)}
@@ -111,10 +107,7 @@ export function DashboardNav({ authDisabled }: { authDisabled: boolean }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex items-center justify-between px-2 text-white">
-              <span className="flex items-center gap-2">
-                <Logo className="h-6 w-6" />
-                <span className="font-display font-bold uppercase tracking-tight text-white">Carbinox</span>
-              </span>
+              <Logo className="h-5 w-auto" />
               <button onClick={() => setOpen(false)} className="rounded-md p-1.5 hover:bg-white/10">
                 <X className="h-5 w-5 text-slate-300" />
               </button>

@@ -1,24 +1,27 @@
-// Carbinox "X" brand mark — bold, hard-edged, with forked tips, rendered as
-// inline SVG (no hosted asset needed). Uses currentColor so it inherits the
-// text color (white on the black sidebar, black on light surfaces).
-// Swap for the official logo file when available for a pixel-exact mark.
-const BAR = "0,-10 48,-10 48,-3.5 34,-3.5 34,3.5 48,3.5 48,10 0,10";
+// Official Carbinox wordmark, vectorized from the brand AI file. Single
+// logotype (the "CARBINOX" letters with the notched X) — it already contains
+// the brand name, so it replaces the old icon + text combo. Uses currentColor
+// so it inherits the surrounding text color (white on the black sidebar, ink
+// on light surfaces). Aspect ratio ≈ 7.09 : 1 — size by height, width auto.
 
-export function Logo({ className = "h-7 w-7" }: { className?: string }) {
+export function Logo({ className = "h-6 w-auto" }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 100 100"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="221.52 460.71 556.96 78.58"
       className={className}
+      fill="currentColor"
       role="img"
       aria-label="Carbinox"
-      fill="currentColor"
     >
-      <g transform="translate(50 50)">
-        <polygon points={BAR} transform="rotate(45)" />
-        <polygon points={BAR} transform="rotate(135)" />
-        <polygon points={BAR} transform="rotate(225)" />
-        <polygon points={BAR} transform="rotate(315)" />
-      </g>
+      <path transform="matrix(1,0,0,-1,275.0825,466.70698)" d="M0 0C10.178 0 18.739-8.466 19.024-19.024H9.512C9.512-13.793 5.231-9.512 0-9.512H-28.537C-33.769-9.512-38.049-13.793-38.049-19.024V-47.561C-38.049-52.793-33.769-57.074-28.537-57.074H0C5.231-57.074 9.512-52.793 9.512-47.561H19.024C19.024-57.645 10.654-66.586 0-66.586H-28.537C-38.715-66.586-47.562-58.311-47.562-47.561V-19.024C-47.562-8.751-39.191-.285-28.537 0Z" />
+      <path transform="matrix(1,0,0,-1,320.7378,476.2188)" d="M0 0C-5.232 0-9.512-4.281-9.512-9.513V-28.537H38.049V-9.513C38.049-4.281 33.769 0 28.537 0ZM47.562-57.074H38.049V-38.049H-9.512V-57.074H-19.024V-9.513C-19.024 .57-10.654 9.512 0 9.512H28.537C38.715 9.512 47.276 1.046 47.562-9.513Z" />
+      <path transform="matrix(1,0,0,-1,434.8823,485.73139)" d="M0 0C0 5.231-4.28 9.513-9.512 9.513H-47.562V-19.024H-9.512C-4.28-19.024 0-14.744 0-9.513ZM2.759-47.562-16.266-28.536H-47.562V-47.562H-57.074V19.024H-9.512C.476 19.024 9.512 10.559 9.512 0V-9.513C9.512-17.598 4.186-24.923-3.71-27.585L9.512-40.808V-47.562Z" />
+      <path transform="matrix(1,0,0,-1,462.4648,504.7559)" d="M0 0V-19.025H38.049C43.281-19.025 47.562-14.744 47.562-9.512 47.562-4.281 43.281 0 38.049 0ZM0 9.512H38.049C43.281 9.512 47.562 13.793 47.562 19.024 47.562 24.256 43.281 28.537 38.049 28.537H0ZM-9.512-28.537V38.049H38.049C48.037 38.049 57.074 29.583 57.074 19.024 57.074 13.316 54.886 8.561 50.605 4.756 54.886 .951 57.074-3.805 57.074-9.512 57.074-19.785 48.703-28.252 38.049-28.537Z" />
+      <path transform="matrix(1,0,0,-1,0,1000)" d="M528.097 533.293H537.61V466.70704H528.097Z" />
+      <path transform="matrix(1,0,0,-1,613.707,533.29299)" d="M0 0H-9.513L-57.074 51.176V0H-66.587V66.586H-57.074L-9.513 16.171V66.586H0Z" />
+      <path transform="matrix(1,0,0,-1,679.3379,485.73139)" d="M0 0C0 5.231-4.28 9.513-9.513 9.513H-38.049C-43.281 9.513-47.562 5.231-47.562 0V-28.536C-47.562-33.769-43.281-38.05-38.049-38.05H-9.513C-4.28-38.05 0-33.769 0-28.536ZM9.513-28.536C9.513-39.001 .951-47.562-9.513-47.562H-38.049C-48.608-47.562-57.074-39.096-57.074-28.536V0C-57.074 10.464-48.513 19.024-38.049 19.024H-9.513C.57 19.024 9.513 10.368 9.513 0Z" />
+      <path transform="matrix(1,0,0,-1,772.4795,467.70698)" d="M0 0H-9.513V-8.512L-10.386-8.506V1H-19.898V-8.512L-38.486-22.49-57.074-8.512V0H-66.587V-8.506L-67.46-8.512V1H-76.973V-13.268L-51.574-32.388-76.973-51.508V-64.586H-67.46V-56.264H-66.587V-65.586H-57.074V-56.264L-38.486-42.286-19.898-56.264V-64.586H-10.386V-56.264H-9.513V-65.586H0V-51.508L-25.398-32.388 0-13.268Z" />
     </svg>
   );
 }
