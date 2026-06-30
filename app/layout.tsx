@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import localFont from "next/font/local";
+import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -9,22 +8,11 @@ const inter = Inter({
   display: "swap",
 });
 
-// Konstant Grotesk — the brand body face (single Book weight). Inter backs it
-// for heavier weights and any glyphs Konstant doesn't include.
-const konstant = localFont({
-  src: [{ path: "./fonts/KonstantGrotesk-Book.otf", weight: "400", style: "normal" }],
-  variable: "--font-konstant",
-  display: "swap",
-});
-
-// Morganite — the brand display face (tall condensed). Used for headings and
-// large stat numbers.
-const morganite = localFont({
-  src: [
-    { path: "./fonts/Morganite-Medium.ttf", weight: "500", style: "normal" },
-    { path: "./fonts/Morganite-SemiBold.ttf", weight: "600", style: "normal" },
-    { path: "./fonts/Morganite-Bold.ttf", weight: "700", style: "normal" },
-  ],
+// Grotesque display face — closest free stand-in for the brand's Konstant
+// Grotesk / Morganite. Swap to the real fonts when the files are available.
+const display = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
   variable: "--font-display",
   display: "swap",
 });
@@ -40,10 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${konstant.variable} ${morganite.variable}`}
-    >
+    <html lang="en" className={`${inter.variable} ${display.variable}`}>
       <body className="font-sans">{children}</body>
     </html>
   );
