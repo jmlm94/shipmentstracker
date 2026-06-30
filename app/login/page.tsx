@@ -1,4 +1,6 @@
-export const metadata = { title: "Sign in · Shipments Tracker" };
+import { Logo } from "@/components/Logo";
+
+export const metadata = { title: "Sign in · Carbinox Tracker" };
 
 export default function LoginPage({
   searchParams,
@@ -7,6 +9,7 @@ export default function LoginPage({
 }) {
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center px-6">
+      <Logo className="mb-6 h-7 w-auto text-ink" />
       <form action="/api/auth/login" method="POST" className="card w-full p-8">
         <h1 className="text-lg font-semibold">Team dashboard</h1>
         <p className="mt-1 text-sm text-muted">Enter the shared password.</p>
