@@ -10,11 +10,12 @@
   body {
     @apply bg-paper text-ink antialiased;
   }
-  /* Display headings use the grotesque face, tight + slightly condensed feel. */
+  /* Headings use the Morganite display face (already tall + condensed), so a
+     hair of positive tracking reads better than negative. */
   h1,
   h2,
   h3 {
-    @apply font-display tracking-tight;
+    @apply font-display tracking-wide;
   }
 }
 
