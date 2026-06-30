@@ -12,11 +12,10 @@ export const dynamic = "force-dynamic";
 
 
 export default async function OverviewPage() {
-  const [grouped, shipmentCount, supplierGroups, recent, unitsAgg, discrepancyCount] =
+  const [grouped, shipmentCount, recent, unitsAgg, discrepancyCount] =
     await Promise.all([
       prisma.box.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.shipment.count(),
-      prisma.shipment.groupBy({ by: ["supplierName"], _count: { _all: true } }),
       prisma.shipment.findMany({
         orderBy: { createdAt: "desc" },
         take: 5,
@@ -66,53 +65,60 @@ export default async function OverviewPage() {
   const totalUnits = unitsAgg._sum.unitsPerBox || 0;
   const attentionCount = ATTENTION_STATUSES.reduce((s, st) => s + (counts[st] || 0), 0);
 
-  // Per-supplier metrics for the breakdown table.
-  const supplierStats = await Promise.all(
-    supplierGroups.map(async (g) => {
-      const boxes = await prisma.box.findMany({
-        where: { shipment: { supplierName: g.supplierName } },
-        select: {
-          status: true,
-          deliveredAt: true,
-          shipment: { select: { shipmentDate: true } },
-        },
-      });
-      const attention = boxes.filter((b) => STATUS_META[b.status].attention).length;
-      const inTransit = boxes.filter(
-        (b) => b.status === "IN_TRANSIT" || b.status === "PENDING"
-      ).length;
-      const delivered = boxes.filter(
-        (b) => b.status === "DELIVERED" || b.status === "ADDED_IN_STOCK"
-      ).length;
-      // Average days from shipment date to delivery, over delivered boxes.
-      const deliveredWithDates = boxes.filter((b) => b.deliveredAt);
-      const avgDays =
-        deliveredWithDates.length > 0
-          ? Math.round(
-              deliveredWithDates.reduce(
-                (s, b) =>
-                  s +
-                  (b.deliveredAt!.getTime() - b.shipment.shipmentDate.getTime()) /
-                    (24 * 60 * 60 * 1000),
-                0
-              ) / deliveredWithDates.length
-            )
-          : null;
-      const lastShipment = boxes.reduce<Date | null>((max, b) => {
-        const d = b.shipment.shipmentDate;
-        return !max || d > max ? d : max;
-      }, null);
-      return {
-        name: g.supplierName,
-        boxes: boxes.length,
-        inTransit,
-        delivered,
-        attention,
-        avgDays,
-        lastShipment,
-      };
-    })
-  );
+  // Per-supplier metrics for the breakdown table. Pull every box once and group
+  // in memory — running one findMany per supplier opened a DB connection per
+  // supplier and could exhaust the Postgres pool as the data grew.
+  const statBoxes = await prisma.box.findMany({
+    select: {
+      status: true,
+      deliveredAt: true,
+      shipment: { select: { supplierName: true, shipmentDate: true } },
+    },
+  });
+  type StatBox = (typeof statBoxes)[number];
+  const bySupplier = new Map<string, StatBox[]>();
+  for (const b of statBoxes) {
+    const name = b.shipment.supplierName;
+    const arr = bySupplier.get(name);
+    if (arr) arr.push(b);
+    else bySupplier.set(name, [b]);
+  }
+  const supplierStats = Array.from(bySupplier.entries()).map(([name, boxes]) => {
+    const attention = boxes.filter((b) => STATUS_META[b.status]?.attention).length;
+    const inTransit = boxes.filter(
+      (b) => b.status === "IN_TRANSIT" || b.status === "PENDING"
+    ).length;
+    const delivered = boxes.filter(
+      (b) => b.status === "DELIVERED" || b.status === "ADDED_IN_STOCK"
+    ).length;
+    // Average days from shipment date to delivery, over delivered boxes.
+    const deliveredWithDates = boxes.filter((b) => b.deliveredAt);
+    const avgDays =
+      deliveredWithDates.length > 0
+        ? Math.round(
+            deliveredWithDates.reduce(
+              (s, b) =>
+                s +
+                (b.deliveredAt!.getTime() - b.shipment.shipmentDate.getTime()) /
+                  (24 * 60 * 60 * 1000),
+              0
+            ) / deliveredWithDates.length
+          )
+        : null;
+    const lastShipment = boxes.reduce<Date | null>((max, b) => {
+      const d = b.shipment.shipmentDate;
+      return !max || d > max ? d : max;
+    }, null);
+    return {
+      name,
+      boxes: boxes.length,
+      inTransit,
+      delivered,
+      attention,
+      avgDays,
+      lastShipment,
+    };
+  });
   // Worst performers (most attention) first.
   supplierStats.sort((a, b) => b.attention - a.attention || b.boxes - a.boxes);
 
