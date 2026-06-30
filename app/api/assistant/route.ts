@@ -4,6 +4,7 @@ import { isAuthed } from "@/lib/auth";
 import { STATUS_META } from "@/lib/status";
 import { etaFor, daysUntil, daysSince, TERMINAL_STATUSES } from "@/lib/eta";
 import { unifyCosts, money } from "@/lib/poStatus";
+import { liveTrack } from "@/lib/easypostTrack";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -62,6 +63,19 @@ const TOOLS = [
       type: "object",
       properties: { code: { type: "string" } },
       required: ["code"],
+    },
+  },
+  {
+    name: "track_package",
+    description:
+      "Get LIVE carrier tracking from EasyPost (UPS/FedEx/USPS/DHL) — current status, location, estimated delivery, and the latest scan events. Use this for 'where is my package', 'is it delivered', current location, or ETA questions. Provide a tracking number (and carrier if known), OR a shipment code to track all of its tracking numbers. This calls the live carrier; our stored status may be a few hours behind.",
+    input_schema: {
+      type: "object",
+      properties: {
+        trackingNumber: { type: "string" },
+        carrier: { type: "string", enum: ["UPS", "FEDEX", "USPS", "DHL", "OTHER"] },
+        shipmentCode: { type: "string", description: "e.g. SHP-47N2DM — tracks every tracking number on that shipment" },
+      },
     },
   },
 ] as const;
@@ -219,6 +233,44 @@ async function runTool(name: string, input: any): Promise<unknown> {
     };
   }
 
+  if (name === "track_package") {
+    // Build the list of (trackingNumber, carrier) pairs to look up.
+    let lookups: { trackingNumber: string; carrier?: string }[] = [];
+
+    if (input.shipmentCode) {
+      const s = await prisma.shipment.findUnique({
+        where: { code: String(input.shipmentCode) },
+        include: { boxes: { select: { trackingNumber: true, carrier: true } } },
+      });
+      if (!s) return { error: `No shipment with code ${input.shipmentCode}` };
+      const seen = new Set<string>();
+      for (const b of s.boxes) {
+        const tn = (b.trackingNumber || "").trim();
+        if (!tn || seen.has(tn)) continue;
+        seen.add(tn);
+        lookups.push({ trackingNumber: tn, carrier: b.carrier || undefined });
+      }
+      if (lookups.length === 0)
+        return { error: `Shipment ${input.shipmentCode} has no tracking numbers on its boxes yet.` };
+    } else if (input.trackingNumber) {
+      let carrier: string | undefined = input.carrier && input.carrier !== "OTHER" ? input.carrier : undefined;
+      if (!carrier) {
+        // Try to resolve the carrier from a box that already has this number.
+        const box = await prisma.box.findFirst({
+          where: { trackingNumber: String(input.trackingNumber) },
+          select: { carrier: true },
+        });
+        if (box?.carrier) carrier = box.carrier;
+      }
+      lookups.push({ trackingNumber: String(input.trackingNumber), carrier });
+    } else {
+      return { error: "Provide a trackingNumber (and carrier if known) or a shipmentCode." };
+    }
+
+    const results = await Promise.all(lookups.map((l) => liveTrack(l.trackingNumber, l.carrier)));
+    return { tracked: results };
+  }
+
   return { error: `Unknown tool ${name}` };
 }
 
@@ -253,6 +305,10 @@ export async function POST(req: Request) {
     "products, suppliers, and statuses using the tools to read live data. Be concise and specific, " +
     "cite real codes (SHP-…, PO-…), and surface anything that needs attention (overdue, stuck, " +
     `damaged, discrepancies). Today's date is ${new Date().toISOString().slice(0, 10)}. ` +
+    "For 'where is my package', current location, delivery status, or ETA questions, use track_package " +
+    "to pull LIVE carrier tracking from EasyPost (UPS/FedEx/USPS/DHL) — you can pass a tracking number " +
+    "or a shipment code (SHP-…). When you report live tracking, give the current status, the latest scan " +
+    "with its location and time, and the estimated delivery date if available. " +
     "If the data doesn't contain the answer, say so plainly.";
 
   try {
