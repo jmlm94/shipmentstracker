@@ -39,6 +39,19 @@ export async function liveTrack(trackingNumber: string, carrier?: string): Promi
     if (!res.ok) {
       const t = await res.text().catch(() => "");
       console.error("[easypostTrack]", res.status, t.slice(0, 200));
+      // Surface account-level problems honestly — they're fixable in the
+      // EasyPost dashboard, not by retyping the tracking number.
+      if (res.status === 402)
+        return {
+          trackingNumber,
+          error:
+            "The EasyPost account is out of funds — add billing at app.easypost.com (Account → Billing), then try again.",
+        };
+      if (res.status === 429)
+        return {
+          trackingNumber,
+          error: "EasyPost is rate-limiting the account right now — try again in a few minutes.",
+        };
       return { trackingNumber, error: `EasyPost returned ${res.status}. Check the number/carrier.` };
     }
     const d: any = await res.json();

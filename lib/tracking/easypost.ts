@@ -15,12 +15,18 @@ const CARRIER_MAP: Record<Carrier, string> = {
   OTHER: "", // special / unknown delivery — not auto-trackable
 };
 
+// Circuit breaker: 402 (unfunded account) and 429 (rate-limited) are
+// account-level — every further call in the run would fail the same way and
+// only make the rate-limiting worse. Pause all calls for a while instead.
+let pausedUntil = 0;
+
 export const easypostProvider: TrackingProvider = {
   name: "easypost",
   async track(trackingNumber: string, carrier: Carrier): Promise<TrackingResult | null> {
     const key = process.env.EASYPOST_API_KEY;
     if (!key) return null;
     if (!CARRIER_MAP[carrier]) return null; // e.g. OTHER / special delivery
+    if (Date.now() < pausedUntil) return null;
 
     const auth = "Basic " + Buffer.from(`${key}:`).toString("base64");
     try {
@@ -37,6 +43,12 @@ export const easypostProvider: TrackingProvider = {
 
       if (!res.ok) {
         console.error("[easypost] error", res.status, await res.text());
+        if (res.status === 402 || res.status === 429) {
+          pausedUntil = Date.now() + 10 * 60_000;
+          console.error(
+            `[easypost] account-level ${res.status} — pausing tracking calls for 10 minutes`
+          );
+        }
         return null;
       }
 
