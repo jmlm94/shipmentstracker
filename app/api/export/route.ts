@@ -2,6 +2,7 @@ import { BoxStatus, Carrier, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
 import { ALL_STATUSES, CARRIER_LABEL, STATUS_META } from "@/lib/status";
+import { PO_STATUS_META, poFinancials, itemLandedUnitCost } from "@/lib/poStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +12,114 @@ function csvCell(v: unknown): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+function csvResponse(headers: string[], rows: unknown[][], filename: string): Response {
+  const csv = [headers.join(","), ...rows.map((r) => r.map(csvCell).join(","))].join("\n");
+  return new Response(csv, {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    },
+  });
+}
+
+const round2 = (n: number | null) => (n === null ? "" : n.toFixed(2));
+
+// Accounting exports: one row per purchase order (financial summary) or one
+// row per PO line item (with its allocated landed unit cost).
+async function exportOrders(lineLevel: boolean): Promise<Response> {
+  const orders = await prisma.purchaseOrder.findMany({
+    orderBy: { createdAt: "asc" },
+    include: { items: true, costs: true, payments: true },
+  });
+  const date = new Date().toISOString().slice(0, 10);
+
+  if (!lineLevel) {
+    const headers = [
+      "PO",
+      "Supplier",
+      "Status",
+      "Order date",
+      "Currency",
+      "Units ordered",
+      "Units received",
+      "Items subtotal",
+      "Shipping & other costs",
+      "Total",
+      "Paid",
+      "Balance due",
+      "Landed cost per unit",
+    ];
+    const rows = orders.map((o) => {
+      const fin = poFinancials(o.items, o.costs, o.payments);
+      return [
+        o.code,
+        o.supplierName,
+        PO_STATUS_META[o.status].label,
+        o.orderDate.toISOString().slice(0, 10),
+        o.currency,
+        fin.orderedUnits,
+        o.items.reduce((s, it) => s + Math.min(it.receivedQty, it.quantity), 0),
+        round2(fin.subtotal),
+        round2(fin.costsTotal),
+        round2(fin.total),
+        round2(fin.paid),
+        round2(fin.balance),
+        round2(fin.landedUnitCost),
+      ];
+    });
+    return csvResponse(headers, rows, `purchase-orders-${date}.csv`);
+  }
+
+  const headers = [
+    "PO",
+    "Supplier",
+    "Status",
+    "Order date",
+    "Currency",
+    "Product",
+    "SKU",
+    "Qty ordered",
+    "Qty received",
+    "Unit cost",
+    "Line subtotal",
+    "Landed cost per unit",
+    "Landed line total",
+  ];
+  const rows = orders.flatMap((o) => {
+    const fin = poFinancials(o.items, o.costs, o.payments);
+    return o.items.map((it) => {
+      const landed = itemLandedUnitCost(it, fin);
+      return [
+        o.code,
+        o.supplierName,
+        PO_STATUS_META[o.status].label,
+        o.orderDate.toISOString().slice(0, 10),
+        o.currency,
+        it.productName,
+        it.sku || "",
+        it.quantity,
+        Math.min(it.receivedQty, it.quantity),
+        round2(it.unitCost),
+        round2(it.quantity * it.unitCost),
+        round2(landed),
+        landed === null ? "" : round2(landed * it.quantity),
+      ];
+    });
+  });
+  return csvResponse(headers, rows, `purchase-order-items-${date}.csv`);
+}
+
 // One CSV row per box — a flat "master sheet". Supports filters via query
 // params: from, to (shipment date range), supplier, status, carrier.
+// type=orders / type=order-items switch to the accounting exports.
 export async function GET(req: Request) {
   if (!isAuthed()) return new Response("Unauthorized", { status: 401 });
 
   const params = new URL(req.url).searchParams;
+  const type = params.get("type");
+  if (type === "orders") return exportOrders(false);
+  if (type === "order-items") return exportOrders(true);
+
   const from = params.get("from");
   const to = params.get("to");
   const supplier = params.get("supplier")?.trim();

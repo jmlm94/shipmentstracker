@@ -20,12 +20,9 @@ export default async function ReceivePage() {
           <h1 className="text-2xl font-semibold">📥 Receive</h1>
           <p className="mt-1 text-sm text-muted">
             Open purchase orders. Click one to mark items delivered — fully or
-            partially. Boxes scanned at the warehouse update these automatically.
+            partially. Carrier-delivered boxes update these automatically.
           </p>
         </div>
-        <Link href="/dashboard/receive/scan" className="btn-secondary">
-          📷 Scan a box instead
-        </Link>
       </div>
 
       {orders.length === 0 ? (

@@ -52,7 +52,7 @@ const TOOLS = [
     input_schema: {
       type: "object",
       properties: {
-        status: { type: "string", enum: ["OPEN", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"] },
+        status: { type: "string", enum: ["DRAFT", "OPEN", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"] },
       },
     },
   },
@@ -87,7 +87,12 @@ function statusLabel(s: string) {
 async function overdueShipmentIds(now: Date) {
   const inTransit = await prisma.shipment.findMany({
     where: { boxes: { some: { status: { notIn: TERMINAL_STATUSES } } } },
-    include: { lines: { select: { shippingMethod: true } } },
+    select: {
+      id: true,
+      shipmentDate: true,
+      expectedDeliveryDate: true,
+      lines: { select: { shippingMethod: true } },
+    },
   });
   const ids = new Set<string>();
   for (const s of inTransit) {

@@ -47,10 +47,6 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         currency: d.currency || "USD",
         notes: d.notes || null,
         status,
-        // Clear legacy single-cost columns now that costs live in their own table.
-        shippingCost: 0,
-        otherCost: 0,
-        otherCostLabel: null,
         items: { create: items },
         costs: {
           create: d.costs.map((c, i) => ({ kind: c.kind, label: c.label, amount: c.amount, sort: i })),

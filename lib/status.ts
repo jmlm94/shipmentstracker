@@ -67,10 +67,12 @@ export function allowedNextStatuses(current: BoxStatus): BoxStatus[] {
 // Maps a raw carrier tracking status string onto our BoxStatus enum.
 export function carrierStatusToBoxStatus(raw: string): BoxStatus | null {
   const s = raw.toLowerCase();
-  // Check "out for delivery" BEFORE "delivered" — it contains "deliver".
+  // Substring order matters: "out_for_delivery" contains "deliver" and
+  // "pre_transit" contains "transit" — check the specific ones first.
   if (s.includes("out_for_delivery") || s.includes("out for delivery")) return "OUT_FOR_DELIVERY";
   if (s.includes("deliver")) return "DELIVERED";
-  if (s.includes("transit") || s.includes("in_transit")) return "IN_TRANSIT";
+  if (s.includes("pre_transit") || s.includes("pre-transit")) return "PENDING";
+  if (s.includes("transit")) return "IN_TRANSIT";
   if (
     s.includes("delay") ||
     s.includes("exception") ||

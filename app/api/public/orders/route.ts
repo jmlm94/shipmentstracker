@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { publicImage } from "@/lib/images";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export async function GET() {
       totalUnits: o.items.reduce((s, it) => s + it.quantity, 0),
       items: o.items.map((it) => ({
         name: it.productName,
-        image: it.productImage || "",
+        image: publicImage(it.productImage),
         sku: it.sku || "",
         qty: it.quantity,
       })),

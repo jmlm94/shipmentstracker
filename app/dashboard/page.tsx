@@ -31,13 +31,6 @@ export default async function OverviewPage() {
       }),
     ]);
 
-  const expected = await prisma.expectedArrival.findMany({
-    where: { status: "EXPECTED" },
-    orderBy: [{ expectedDate: "asc" }, { createdAt: "desc" }],
-    take: 5,
-    include: { items: true },
-  });
-
   const now = new Date();
   const latestSync = await prisma.syncRun.findFirst({ orderBy: { startedAt: "desc" } });
   const syncStale = latestSync
@@ -48,7 +41,15 @@ export default async function OverviewPage() {
   // Overdue shipments (past ETA with non-terminal boxes) — for the Alerts banner.
   const inTransit = await prisma.shipment.findMany({
     where: { boxes: { some: { status: { notIn: TERMINAL_STATUSES } } } },
-    include: { lines: { select: { shippingMethod: true } }, boxes: { select: { status: true } } },
+    select: {
+      id: true,
+      code: true,
+      poNumber: true,
+      supplierName: true,
+      shipmentDate: true,
+      expectedDeliveryDate: true,
+      lines: { select: { shippingMethod: true } },
+    },
   });
   const overdueShipments = inTransit
     .map((s) => {
@@ -316,36 +317,6 @@ export default async function OverviewPage() {
           </Link>
         ))}
       </div>
-
-      {expected.length > 0 && (
-        <section className="card mb-6 p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-              ⏳ Incoming (expected)
-            </h2>
-            <Link href="/dashboard/expected" className="text-sm text-muted hover:text-ink">
-              Manage →
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {expected.map((a) => {
-              const units = a.items.reduce((s, it) => s + it.expectedUnits, 0);
-              return (
-                <div
-                  key={a.id}
-                  className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm"
-                >
-                  <span className="font-medium">{a.supplierName}</span>
-                  <span className="text-muted">
-                    {a.expectedDate ? `${a.expectedDate.toISOString().slice(0, 10)} · ` : ""}
-                    {a.items.length} product{a.items.length === 1 ? "" : "s"} · {units} units
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       {/* By supplier */}
       <section className="card mb-6 overflow-x-auto p-5">

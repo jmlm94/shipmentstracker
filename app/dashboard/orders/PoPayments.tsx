@@ -43,6 +43,9 @@ export function PoPayments({
       try {
         const fd = new FormData();
         fd.append("image", file);
+        // Upload date in the user's timezone (en-CA formats as YYYY-MM-DD) —
+        // the server's clock is UTC and can be a day ahead in the evening.
+        fd.append("paidAt", new Date().toLocaleDateString("en-CA"));
         const res = await fetch(`/api/orders/${orderId}/payments`, { method: "POST", body: fd });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.payment) {

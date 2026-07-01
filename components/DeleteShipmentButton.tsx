@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "@/components/Toaster";
 
 export function DeleteShipmentButton({ id, code }: { id: string; code: string }) {
   const router = useRouter();
@@ -17,7 +18,7 @@ export function DeleteShipmentButton({ id, code }: { id: string; code: string })
       router.refresh();
     } else {
       setBusy(false);
-      alert("Could not delete. Please try again.");
+      toast("Could not delete. Please try again.", "error");
     }
   }
 

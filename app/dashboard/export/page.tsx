@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ALL_CARRIERS, ALL_STATUSES, CARRIER_LABEL, STATUS_META } from "@/lib/status";
+import { MigrateImagesButton } from "@/components/MigrateImagesButton";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,40 @@ export default async function ExportPage() {
         carrier, method, product/SKU, tracking number, units, weight (lbs &amp;
         kg), status, discrepancy, received-by, and carrier status.
       </p>
+
+      {/* Accounting exports */}
+      <section className="card mt-8 p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+          💰 Purchase orders (accounting)
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Financial exports for bookkeeping: totals, payments, balance due, and
+          landed cost per unit.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <a href="/api/export?type=orders" className="btn">
+            ⬇️ Orders summary CSV
+          </a>
+          <a href="/api/export?type=order-items" className="btn-secondary">
+            ⬇️ Line items CSV (landed costs)
+          </a>
+        </div>
+      </section>
+
+      {/* Maintenance */}
+      <section className="card mt-6 p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
+          🛠 Maintenance
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          If images were uploaded before Blob storage was configured, they live
+          inside the database and slow pages down. This moves them to Vercel
+          Blob (requires <code className="rounded bg-slate-100 px-1">BLOB_READ_WRITE_TOKEN</code>).
+        </p>
+        <div className="mt-4">
+          <MigrateImagesButton />
+        </div>
+      </section>
     </div>
   );
 }

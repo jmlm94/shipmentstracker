@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BoxStatus } from "@prisma/client";
 import { allowedNextStatuses, STATUS_META } from "@/lib/status";
+import { toast } from "@/components/Toaster";
 
 export function BoxStatusEditor({
   boxId,
@@ -51,7 +52,7 @@ export function BoxStatusEditor({
       setOpen(false);
       router.refresh();
     } else {
-      alert("Could not save. Please try again.");
+      toast("Could not save. Please try again.", "error");
     }
   }
 

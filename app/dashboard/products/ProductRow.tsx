@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "@/components/Toaster";
 
 export function ProductRow({
   id,
@@ -31,7 +32,7 @@ export function ProductRow({
         router.refresh();
       } else {
         const d = await res.json().catch(() => ({}));
-        alert(d.error || "Could not upload the image.");
+        toast(d.error || "Could not upload the image.", "error");
       }
     } finally {
       setUploading(false);
@@ -56,7 +57,7 @@ export function ProductRow({
       setEditing(false);
       router.refresh();
     } else {
-      alert("Could not save. Try again.");
+      toast("Could not save. Try again.", "error");
     }
   }
 

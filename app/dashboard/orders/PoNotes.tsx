@@ -99,8 +99,11 @@ export function PoNotes({ orderId, notes }: { orderId: string; notes: Note[] }) 
             return (
               <div key={n.id} className="rounded-xl border border-slate-100 p-3">
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="text-[11px] text-muted">
-                    {n.createdAt.slice(0, 16).replace("T", " ")}
+                  <span className="text-[11px] text-muted" suppressHydrationWarning>
+                    {new Date(n.createdAt).toLocaleString(undefined, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
                   </span>
                   <button onClick={() => remove(n.id)} title="Delete" className="text-slate-300 hover:text-red-500">
                     ✕

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CATALOG } from "@/lib/catalog";
+import { publicImage } from "@/lib/images";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export async function GET() {
         id: p.id,
         title: p.name,
         sku: p.sku || "",
-        image: p.image || "",
+        image: publicImage(p.image),
       })),
     });
   }

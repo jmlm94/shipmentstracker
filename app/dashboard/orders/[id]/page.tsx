@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { PO_STATUS_META, money, unifyCosts } from "@/lib/poStatus";
+import { PO_STATUS_META, money, unifyCosts, poFinancials, itemLandedUnitCost } from "@/lib/poStatus";
 import { CountUp } from "@/components/CountUp";
 import { PoActions } from "../PoActions";
 import { PoPayments } from "../PoPayments";
@@ -37,10 +37,8 @@ export default async function OrderDetail({ params }: { params: { id: string } }
   }
 
   const costs = unifyCosts(po);
-  const costsTotal = costs.reduce((s, c) => s + c.amount, 0);
-  const subtotal = po.items.reduce((s, it) => s + it.quantity * it.unitCost, 0);
-  const total = subtotal + costsTotal;
-  const orderedUnits = po.items.reduce((s, it) => s + it.quantity, 0);
+  const fin = poFinancials(po.items, po.costs, po.payments);
+  const { subtotal, total, orderedUnits } = fin;
   const receivedUnits = po.items.reduce((s, it) => s + Math.min(it.receivedQty, it.quantity), 0);
   const shippedUnits = po.items.reduce(
     (s, it) => s + Math.min(shippedByProduct.get(it.productId) || 0, it.quantity),
@@ -80,11 +78,18 @@ export default async function OrderDetail({ params }: { params: { id: string } }
       )}
 
       {/* Fulfillment summary */}
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="card p-4 transition hover:-translate-y-0.5 hover:shadow-card-hover">
           <div className="text-xs uppercase tracking-wide text-muted">Ordered</div>
           <CountUp value={orderedUnits} className="mt-1 block text-2xl font-bold" />
           <div className="text-xs text-muted">units</div>
+        </div>
+        <div className="card p-4 transition hover:-translate-y-0.5 hover:shadow-card-hover">
+          <div className="text-xs uppercase tracking-wide text-muted">💵 Landed cost</div>
+          <span className="mt-1 block text-2xl font-bold">
+            {fin.landedUnitCost !== null ? money(fin.landedUnitCost, po.currency) : "—"}
+          </span>
+          <div className="text-xs text-muted">per unit, all costs in</div>
         </div>
         <div className="card p-4 transition hover:-translate-y-0.5 hover:shadow-card-hover">
           <div className="text-xs uppercase tracking-wide text-muted">🚚 Shipped</div>
@@ -128,12 +133,13 @@ export default async function OrderDetail({ params }: { params: { id: string } }
       {/* Items table */}
       <section className="card mb-6 overflow-x-auto p-5">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Items</h2>
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[820px] text-sm">
           <thead>
             <tr className="text-left text-xs uppercase text-muted">
               <th className="pb-2 font-medium">Product</th>
               <th className="pb-2 text-right font-medium">Ordered</th>
               <th className="pb-2 text-right font-medium">Unit cost</th>
+              <th className="pb-2 text-right font-medium">Landed / unit</th>
               <th className="pb-2 text-right font-medium">Line total</th>
               <th className="pb-2 text-right font-medium">Shipped</th>
               <th className="pb-2 text-right font-medium">Received</th>
@@ -161,6 +167,12 @@ export default async function OrderDetail({ params }: { params: { id: string } }
                   </td>
                   <td className="py-2 text-right">{it.quantity}</td>
                   <td className="py-2 text-right">{money(it.unitCost, po.currency)}</td>
+                  <td className="py-2 text-right text-muted">
+                    {(() => {
+                      const landed = itemLandedUnitCost(it, fin);
+                      return landed !== null ? money(landed, po.currency) : "—";
+                    })()}
+                  </td>
                   <td className="py-2 text-right">{money(it.quantity * it.unitCost, po.currency)}</td>
                   <td className="py-2 text-right text-blue-600">{shipped || "—"}</td>
                   <td className="py-2 text-right">
@@ -199,6 +211,16 @@ export default async function OrderDetail({ params }: { params: { id: string } }
           <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold">
             <span>Total</span>
             <span>{money(total, po.currency)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted">Paid</span>
+            <span className="text-emerald-700">{money(fin.paid, po.currency)}</span>
+          </div>
+          <div className="flex justify-between font-semibold">
+            <span>{fin.balance >= 0 ? "Balance due" : "Overpaid"}</span>
+            <span className={fin.balance > 0.005 ? "text-amber-700" : fin.balance < -0.005 ? "text-red-600" : "text-emerald-700"}>
+              {money(Math.abs(fin.balance), po.currency)}
+            </span>
           </div>
         </div>
       </section>
