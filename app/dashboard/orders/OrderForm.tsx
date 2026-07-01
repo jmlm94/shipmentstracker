@@ -67,6 +67,8 @@ export function OrderForm({ initial }: { initial?: OrderFormInitial }) {
   const [otherCosts, setOtherCosts] = useState<OtherRow[]>(initial?.otherCosts ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set after a failed submit so cost rows missing a description show red.
+  const [flagMissingLabels, setFlagMissingLabels] = useState(false);
 
   function setItem(i: number, patch: Partial<Item>) {
     setItems((p) => p.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
@@ -103,21 +105,36 @@ export function OrderForm({ initial }: { initial?: OrderFormInitial }) {
     otherCosts.forEach((c) => {
       const mag = Number(c.amount) || 0;
       if (mag === 0 && !c.label.trim()) return;
+      // Label is validated as required before submit — no silent defaults, so
+      // every charge/credit says where it came from.
       costs.push({
         kind: "OTHER",
-        label: c.label.trim() || (c.sign === "-" ? "Credit" : "Other"),
+        label: c.label.trim(),
         amount: (c.sign === "-" ? -1 : 1) * mag,
       });
     });
     return costs;
   }
 
+  // Other costs / credits with an amount but no description ("Credit $500"
+  // with no context is useless three months later).
+  function missingCostLabels() {
+    return otherCosts.some((c) => (Number(c.amount) || 0) !== 0 && !c.label.trim());
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setFlagMissingLabels(false);
     if (!supplierName.trim()) return setError("Supplier name is required.");
     if (items.some((it) => !it.productId || !it.quantity))
       return setError("Each line needs a product and a quantity.");
+    if (missingCostLabels()) {
+      setFlagMissingLabels(true);
+      return setError(
+        "Describe each other cost / credit (highlighted below) so you'll know where it came from."
+      );
+    }
 
     setSaving(true);
     const body = {
@@ -366,8 +383,12 @@ export function OrderForm({ initial }: { initial?: OrderFormInitial }) {
                       ))}
                     </span>
                     <input
-                      className="input flex-1"
-                      placeholder={c.sign === "-" ? "What's the credit? (e.g. defect refund)" : "What's the cost? (e.g. customs duty)"}
+                      className={`input flex-1 ${
+                        flagMissingLabels && (Number(c.amount) || 0) !== 0 && !c.label.trim()
+                          ? "border-red-400 ring-1 ring-red-300"
+                          : ""
+                      }`}
+                      placeholder={c.sign === "-" ? "Where's this credit from? (e.g. defect refund PO-0002)" : "What's this cost? (e.g. customs duty)"}
                       value={c.label}
                       onChange={(e) =>
                         setOtherCosts((p) => p.map((x, idx) => (idx === i ? { ...x, label: e.target.value } : x)))
