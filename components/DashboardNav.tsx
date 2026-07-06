@@ -11,6 +11,7 @@ import {
   Tags,
   FileText,
   Download,
+  ExternalLink,
   MessageCircle,
   LogOut,
   Menu,
@@ -52,6 +53,13 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           </Link>
         );
       })}
+      {/* The supplier-facing intake form, one click away for internal use too
+          (e.g. filling it on a supplier's behalf). Opens in a new tab so the
+          dashboard stays put. */}
+      <a href="/submit" target="_blank" rel="noreferrer" className="nav-item">
+        <ExternalLink className="h-[18px] w-[18px] shrink-0" strokeWidth={2} />
+        Shipment Form ↗
+      </a>
     </nav>
   );
 }
