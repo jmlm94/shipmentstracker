@@ -21,6 +21,14 @@ export default function SubmitPage() {
             <span className="truncate text-sm text-white/70">Supplier Shipment Intake</span>
             <span className="text-[11px] text-white/45">{site}</span>
           </div>
+          <a
+            href="/supplier-guide.pdf"
+            target="_blank"
+            rel="noreferrer"
+            className="ml-auto shrink-0 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-ink transition hover:bg-brand-400"
+          >
+            📖 Guide / 指南
+          </a>
         </div>
       </div>
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
