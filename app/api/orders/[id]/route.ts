@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
 import { orderBodySchema, statusFromReceived } from "@/lib/po";
+import { PO_STATUS_META } from "@/lib/poStatus";
+import { logPoEvent } from "@/lib/poLog";
 
 // Full edit: replaces items + costs and recomputes status from received qty.
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
@@ -55,6 +57,16 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     });
   });
 
+  const units = items.reduce((s, it) => s + it.quantity, 0);
+  const value = items.reduce((s, it) => s + it.quantity * it.unitCost, 0) +
+    d.costs.reduce((s, c) => s + c.amount, 0);
+  await logPoEvent(
+    params.id,
+    "EDIT",
+    `Order edited — ${items.length} item${items.length === 1 ? "" : "s"}, ${units} units, total ${d.currency || "USD"} ${value.toFixed(2)}`,
+    "dashboard"
+  );
+
   return NextResponse.json({ ok: true, id: params.id });
 }
 
@@ -83,10 +95,27 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     });
   }
 
+  const before = await prisma.purchaseOrder.findUnique({
+    where: { id: params.id },
+    select: { status: true },
+  });
   await prisma.purchaseOrder.update({
     where: { id: params.id },
     data: { status: parsed.data.status },
   });
+  if (before && before.status !== parsed.data.status) {
+    await logPoEvent(
+      params.id,
+      "STATUS",
+      `Status: ${PO_STATUS_META[before.status].label} → ${PO_STATUS_META[parsed.data.status].label}` +
+        (parsed.data.status === "RECEIVED"
+          ? " — all items marked fully received"
+          : parsed.data.status === "OPEN"
+            ? " — received counts reset to 0"
+            : ""),
+      "dashboard"
+    );
+  }
   return NextResponse.json({ ok: true });
 }
 

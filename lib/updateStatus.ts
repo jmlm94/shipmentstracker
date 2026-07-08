@@ -73,7 +73,7 @@ export async function applyCarrierStatusChange(opts: {
   }
   const changed = await applyStatusChange({ box, toStatus, source: "carrier", detail, extra });
   if (changed && box.shipment.purchaseOrderId) {
-    await syncPoReceivedFromShipments(box.shipment.purchaseOrderId, "max");
+    await syncPoReceivedFromShipments(box.shipment.purchaseOrderId, "max", "carrier");
   }
   return changed;
 }

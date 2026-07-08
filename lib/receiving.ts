@@ -1,5 +1,7 @@
 import { prisma } from "./prisma";
 import { statusFromReceived } from "./po";
+import { PO_STATUS_META } from "./poStatus";
+import { logPoEvent } from "./poLog";
 
 // Roll up how many units of each product have actually been received at the
 // warehouse (box.unitsReceived) into the linked purchase order's per-item
@@ -11,9 +13,13 @@ import { statusFromReceived } from "./po";
 //  - mode "max":  receivedQty = max(current, box-derived) — never lowers a value
 //                 recorded manually in the Receive view; used when a box is
 //                 delivered so deliveries push the PO's received count up.
+//
+// `source` describes what caused the sync, for the PO activity log
+// (e.g. "carrier", "warehouse", "manual sync").
 export async function syncPoReceivedFromShipments(
   poId: string,
-  mode: "set" | "max" = "set"
+  mode: "set" | "max" = "set",
+  source = "shipments"
 ): Promise<void> {
   const po = await prisma.purchaseOrder.findUnique({
     where: { id: poId },
@@ -50,4 +56,27 @@ export async function syncPoReceivedFromShipments(
       .map((n) => prisma.purchaseOrderItem.update({ where: { id: n.id }, data: { receivedQty: n.receivedQty } })),
     prisma.purchaseOrder.update({ where: { id: poId }, data: { status: nextStatus } }),
   ]);
+
+  // Activity log: one line per item whose received count moved, plus the
+  // status transition when it changed.
+  for (let i = 0; i < next.length; i++) {
+    const before = po.items[i].receivedQty;
+    const after = next[i].receivedQty;
+    if (after === before) continue;
+    const delta = after - before;
+    await logPoEvent(
+      poId,
+      "RECEIVED",
+      `${delta > 0 ? "+" : ""}${delta} × ${po.items[i].productName} received — now ${after} of ${po.items[i].quantity} (${Math.max(0, po.items[i].quantity - after)} remaining)`,
+      source
+    );
+  }
+  if (nextStatus !== po.status) {
+    await logPoEvent(
+      poId,
+      "STATUS",
+      `Status: ${PO_STATUS_META[po.status].label} → ${PO_STATUS_META[nextStatus].label}`,
+      source
+    );
+  }
 }

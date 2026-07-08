@@ -6,6 +6,7 @@ import { isAuthed } from "@/lib/auth";
 import { generateShipmentCode, boxCodeFor } from "@/lib/code";
 import { sendSlack } from "@/lib/slack";
 import { CARRIER_LABEL } from "@/lib/status";
+import { logPoEvent } from "@/lib/poLog";
 
 // Internal-only: attach tracking number(s) to a purchase order without the full
 // supplier form. Each line becomes one ShipmentLine + one Box so tracking,
@@ -118,6 +119,13 @@ export async function POST(req: Request) {
       d.lines
         .map((l) => `• ${l.productName}: ${l.units} units · ${CARRIER_LABEL[l.carrier]} \`${l.trackingNumber}\``)
         .join("\n")
+  );
+
+  await logPoEvent(
+    po.id,
+    "SHIPMENT",
+    `Tracking added — shipment ${code} (${totalBoxes} boxes, ${totalUnits} units)`,
+    "quick-track"
   );
 
   return NextResponse.json({ id: shipment.id, code, boxes: totalBoxes, units: totalUnits });

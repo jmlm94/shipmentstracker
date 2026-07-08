@@ -17,6 +17,7 @@ export default async function OrderDetail({ params }: { params: { id: string } }
       costs: true,
       payments: { orderBy: { createdAt: "desc" } },
       noteEntries: { orderBy: { createdAt: "desc" } },
+      events: { orderBy: { createdAt: "desc" }, take: 60 },
       shipments: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -285,13 +286,60 @@ export default async function OrderDetail({ params }: { params: { id: string } }
       </section>
 
       {po.notes && (
-        <section className="card p-5">
+        <section className="card mb-6 p-5">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">
             Notes / terms
           </h2>
           <p className="whitespace-pre-wrap text-sm">{po.notes}</p>
         </section>
       )}
+
+      {/* Activity log */}
+      <section className="card p-5">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+          🕓 Activity log
+        </h2>
+        {po.events.length === 0 ? (
+          <p className="text-sm text-muted">
+            No activity recorded yet. From now on, every received unit, status
+            change, shipment, payment and edit on this order shows up here.
+          </p>
+        ) : (
+          <ol className="relative ml-2 space-y-0 border-l border-slate-200">
+            {po.events.map((ev) => (
+              <li key={ev.id} className="relative pb-4 pl-5 last:pb-0">
+                <span
+                  className={`absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full ${EVENT_DOT[ev.kind] || "bg-slate-300"}`}
+                />
+                <div className="text-sm">
+                  <span className="mr-1.5">{EVENT_ICON[ev.kind] || "•"}</span>
+                  {ev.message}
+                </div>
+                <div className="mt-0.5 text-[11px] text-muted">
+                  {ev.createdAt.toISOString().slice(0, 16).replace("T", " ")} UTC
+                  {ev.source ? ` · via ${ev.source}` : ""}
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
     </div>
   );
 }
+
+const EVENT_ICON: Record<string, string> = {
+  RECEIVED: "📦",
+  STATUS: "🔁",
+  SHIPMENT: "🚚",
+  PAYMENT: "💵",
+  EDIT: "✏️",
+};
+
+const EVENT_DOT: Record<string, string> = {
+  RECEIVED: "bg-emerald-500",
+  STATUS: "bg-blue-500",
+  SHIPMENT: "bg-indigo-500",
+  PAYMENT: "bg-brand-500",
+  EDIT: "bg-slate-400",
+};

@@ -63,9 +63,26 @@ model PurchaseOrder {
   payments        PoPayment[]
   noteEntries     PoNote[]
   shipments       Shipment[]
+  events          PoEvent[]
 
   @@index([status])
   @@index([code])
+  @@schema("shipments")
+}
+
+// Activity log for a purchase order: every change that matters — units
+// received, status transitions, shipments linked, payments, edits — with what
+// caused it. Append-only.
+model PoEvent {
+  id              String   @id @default(cuid())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  purchaseOrderId String
+  kind            String   // RECEIVED | STATUS | SHIPMENT | PAYMENT | EDIT
+  message         String
+  source          String?  // e.g. "carrier", "warehouse", "receive view", "dashboard"
+  createdAt       DateTime @default(now())
+
+  @@index([purchaseOrderId, createdAt])
   @@schema("shipments")
 }
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
+import { logPoEvent } from "@/lib/poLog";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -123,6 +124,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     },
   });
 
+  await logPoEvent(
+    po.id,
+    "PAYMENT",
+    `Payment added${payment.amount != null ? ` — $${payment.amount.toFixed(2)}` : ""}${payment.label ? ` (${payment.label})` : ""}, dated ${payment.paidAt.toISOString().slice(0, 10)}`,
+    "dashboard"
+  );
+
   return NextResponse.json({
     ok: true,
     payment: {
@@ -160,6 +168,15 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
   if (!isAuthed()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const paymentId = new URL(req.url).searchParams.get("paymentId");
   if (!paymentId) return NextResponse.json({ error: "Missing paymentId" }, { status: 400 });
+  const gone = await prisma.poPayment.findFirst({ where: { id: paymentId, purchaseOrderId: params.id } });
   await prisma.poPayment.deleteMany({ where: { id: paymentId, purchaseOrderId: params.id } });
+  if (gone) {
+    await logPoEvent(
+      params.id,
+      "PAYMENT",
+      `Payment removed${gone.amount != null ? ` — $${gone.amount.toFixed(2)}` : ""}${gone.label ? ` (${gone.label})` : ""}`,
+      "dashboard"
+    );
+  }
   return NextResponse.json({ ok: true });
 }

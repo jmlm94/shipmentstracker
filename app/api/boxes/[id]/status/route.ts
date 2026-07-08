@@ -72,7 +72,7 @@ export async function PATCH(
   // Reflect this receipt on the linked purchase order (delivered package →
   // PO received count). "max" so it never lowers a manually-entered value.
   if (box.shipment.purchaseOrderId) {
-    await syncPoReceivedFromShipments(box.shipment.purchaseOrderId, "max");
+    await syncPoReceivedFromShipments(box.shipment.purchaseOrderId, "max", "warehouse");
   }
 
   return NextResponse.json({ ok: true, hasDiscrepancy: extra.hasDiscrepancy });

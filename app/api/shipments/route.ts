@@ -5,6 +5,7 @@ import { shipmentSchema } from "@/lib/validation";
 import { sendSlack } from "@/lib/slack";
 import { generateShipmentCode, boxCodeFor } from "@/lib/code";
 import { CARRIER_LABEL } from "@/lib/status";
+import { logPoEvent } from "@/lib/poLog";
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -116,6 +117,15 @@ export async function POST(req: Request) {
         )
         .join("\n")
   );
+
+  if (data.purchaseOrderId) {
+    await logPoEvent(
+      data.purchaseOrderId,
+      "SHIPMENT",
+      `Shipment ${code} linked — ${totalBoxes} boxes, ${totalUnits} units from ${data.supplierName}`,
+      "supplier form"
+    );
+  }
 
   return NextResponse.json({ id: shipment.id, code, boxes: totalBoxes });
 }

@@ -9,6 +9,6 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   if (!isAuthed()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const po = await prisma.purchaseOrder.findUnique({ where: { id: params.id } });
   if (!po) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  await syncPoReceivedFromShipments(params.id, "set");
+  await syncPoReceivedFromShipments(params.id, "set", "manual sync");
   return NextResponse.json({ ok: true });
 }

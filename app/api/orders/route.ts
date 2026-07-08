@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
 import { poCodeFor } from "@/lib/code";
 import { orderBodySchema } from "@/lib/po";
+import { logPoEvent } from "@/lib/poLog";
 
 export async function POST(req: Request) {
   if (!isAuthed()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -54,6 +55,8 @@ export async function POST(req: Request) {
       },
     },
   });
+
+  await logPoEvent(po.id, "EDIT", `Order created as draft — ${d.items.length} item${d.items.length === 1 ? "" : "s"}, ${d.items.reduce((t, it) => t + it.quantity, 0)} units`, "dashboard");
 
   return NextResponse.json({ id: po.id, code: po.code });
 }
