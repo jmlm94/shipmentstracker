@@ -2,6 +2,7 @@ import { prisma } from "./prisma";
 import { getTrackingProvider } from "./tracking";
 import { carrierStatusToBoxStatus } from "./status";
 import { applyCarrierStatusChange } from "./updateStatus";
+import { reconcileDeliveredBoxes } from "./receiving";
 import { sendSlack } from "./slack";
 import { etaFor, daysSince, TERMINAL_STATUSES } from "./eta";
 
@@ -39,6 +40,12 @@ export async function runTrackingRefresh(trigger: "cron" | "manual") {
         }
       }
     }
+
+    // Safety net: credit any delivered box that slipped through and re-sync
+    // every purchase order with credited boxes. Makes "delivered ⇒ received"
+    // self-healing on every run.
+    const healed = await reconcileDeliveredBoxes();
+    if (healed > 0) console.log(`[refreshTracking] reconciled ${healed} delivered box(es)`);
 
     await checkOverdue();
   } catch (e) {

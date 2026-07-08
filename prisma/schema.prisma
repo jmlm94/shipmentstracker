@@ -128,7 +128,11 @@ model PurchaseOrderItem {
   sku             String?
   quantity        Int
   unitCost        Float   @default(0)
-  receivedQty     Int     @default(0)  // units received so far (manual + synced from shipments)
+  receivedQty     Int     @default(0)  // total units received (manual baseline + delivered boxes)
+  // The portion of receivedQty that came from tracked boxes. Kept separately so
+  // box deliveries ADD to manually recorded receipts instead of competing with
+  // them: total = manual baseline + box-derived.
+  receivedFromBoxes Int   @default(0)
 
   @@index([purchaseOrderId])
   @@schema("shipments")

@@ -70,9 +70,9 @@ export async function PATCH(
   });
 
   // Reflect this receipt on the linked purchase order (delivered package →
-  // PO received count). "max" so it never lowers a manually-entered value.
+  // PO received count). Box units add on top of manually recorded receipts.
   if (box.shipment.purchaseOrderId) {
-    await syncPoReceivedFromShipments(box.shipment.purchaseOrderId, "max", "warehouse");
+    await syncPoReceivedFromShipments(box.shipment.purchaseOrderId, "add", "warehouse");
   }
 
   return NextResponse.json({ ok: true, hasDiscrepancy: extra.hasDiscrepancy });

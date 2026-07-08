@@ -58,9 +58,9 @@ export async function applyStatusChange(opts: {
 
 // Carrier-driven status change (from EasyPost polling or the webhook). On
 // delivery we optimistically record full receipt (so the linked PO updates),
-// then roll the receipt up to the purchase order. The warehouse can still
-// correct quantities later via the Receive view — "max" mode never lowers a
-// value entered there.
+// then roll the receipt up to the purchase order. Box deliveries ADD to any
+// manually recorded receipts; the warehouse can still correct totals later
+// via the Receive view.
 export async function applyCarrierStatusChange(opts: {
   box: BoxWithShipment;
   toStatus: BoxStatus;
@@ -73,7 +73,7 @@ export async function applyCarrierStatusChange(opts: {
   }
   const changed = await applyStatusChange({ box, toStatus, source: "carrier", detail, extra });
   if (changed && box.shipment.purchaseOrderId) {
-    await syncPoReceivedFromShipments(box.shipment.purchaseOrderId, "max", "carrier");
+    await syncPoReceivedFromShipments(box.shipment.purchaseOrderId, "add", "carrier");
   }
   return changed;
 }
