@@ -158,7 +158,6 @@ export default async function OrderDetail({ params }: { params: { id: string } }
           <tbody>
             {po.items.map((it) => {
               const rec = Math.min(it.receivedQty, it.quantity);
-              const shipped = shippedByProduct.get(it.productId) || 0;
               const inTransit = onTheWay(it.productId);
               const remaining = Math.max(0, it.quantity - rec);
               return (
@@ -184,13 +183,12 @@ export default async function OrderDetail({ params }: { params: { id: string } }
                     })()}
                   </td>
                   <td className="py-2 text-right">{money(it.quantity * it.unitCost, po.currency)}</td>
+                  {/* Blue while units are in transit, dash otherwise. No checkmark
+                      here — "all shipped arrived" isn't "order complete"; the
+                      Remaining column owns the ✓ when every unit is delivered. */}
                   <td className="py-2 text-right">
                     {inTransit > 0 ? (
                       <span className="text-blue-600">{inTransit}</span>
-                    ) : shipped > 0 ? (
-                      <span className="text-emerald-600" title={`All ${shipped} shipped units arrived`}>
-                        ✓
-                      </span>
                     ) : (
                       <span className="text-muted">—</span>
                     )}
