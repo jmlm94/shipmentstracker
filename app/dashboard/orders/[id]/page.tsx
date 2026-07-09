@@ -28,14 +28,21 @@ export default async function OrderDetail({ params }: { params: { id: string } }
   });
   if (!po) notFound();
 
-  // Units shipped per product (rolled up from linked shipments' boxes) — this is
-  // what makes a newly-created shipment reflect on the PO immediately.
+  // Units shipped / delivered per product (rolled up from linked shipments'
+  // boxes). "On the way" = shipped − delivered, so it drops to zero once the
+  // boxes arrive instead of showing shipped units forever.
   const shippedByProduct = new Map<string, number>();
+  const arrivedByProduct = new Map<string, number>();
   for (const s of po.shipments) {
     for (const b of s.boxes) {
       shippedByProduct.set(b.productId, (shippedByProduct.get(b.productId) || 0) + b.unitsPerBox);
+      if (b.unitsReceived != null) {
+        arrivedByProduct.set(b.productId, (arrivedByProduct.get(b.productId) || 0) + b.unitsReceived);
+      }
     }
   }
+  const onTheWay = (productId: string) =>
+    Math.max(0, (shippedByProduct.get(productId) || 0) - (arrivedByProduct.get(productId) || 0));
 
   const costs = unifyCosts(po);
   const fin = poFinancials(po.items, po.costs, po.payments);
@@ -45,6 +52,7 @@ export default async function OrderDetail({ params }: { params: { id: string } }
     (s, it) => s + Math.min(shippedByProduct.get(it.productId) || 0, it.quantity),
     0
   );
+  const onTheWayUnits = po.items.reduce((s, it) => s + onTheWay(it.productId), 0);
   const meta = PO_STATUS_META[po.status];
 
   return (
@@ -93,10 +101,10 @@ export default async function OrderDetail({ params }: { params: { id: string } }
           <div className="text-xs text-muted">per unit, all costs in</div>
         </div>
         <div className="card p-4 transition hover:-translate-y-0.5 hover:shadow-card-hover">
-          <div className="text-xs uppercase tracking-wide text-muted">🚚 Shipped</div>
-          <CountUp value={shippedUnits} className="mt-1 block text-2xl font-bold text-blue-600" />
+          <div className="text-xs uppercase tracking-wide text-muted">🚚 On the way</div>
+          <CountUp value={onTheWayUnits} className="mt-1 block text-2xl font-bold text-blue-600" />
           <div className="text-xs text-muted">
-            across {po.shipments.length} shipment{po.shipments.length === 1 ? "" : "s"}
+            of {shippedUnits} shipped across {po.shipments.length} shipment{po.shipments.length === 1 ? "" : "s"}
           </div>
         </div>
         <div className="card p-4 transition hover:-translate-y-0.5 hover:shadow-card-hover">
@@ -142,7 +150,7 @@ export default async function OrderDetail({ params }: { params: { id: string } }
               <th className="pb-2 text-right font-medium">Unit cost</th>
               <th className="pb-2 text-right font-medium">Landed / unit</th>
               <th className="pb-2 text-right font-medium">Line total</th>
-              <th className="pb-2 text-right font-medium">Shipped</th>
+              <th className="pb-2 text-right font-medium">On the way</th>
               <th className="pb-2 text-right font-medium">Received</th>
               <th className="pb-2 text-right font-medium">Remaining</th>
             </tr>
@@ -151,6 +159,7 @@ export default async function OrderDetail({ params }: { params: { id: string } }
             {po.items.map((it) => {
               const rec = Math.min(it.receivedQty, it.quantity);
               const shipped = shippedByProduct.get(it.productId) || 0;
+              const inTransit = onTheWay(it.productId);
               const remaining = Math.max(0, it.quantity - rec);
               return (
                 <tr key={it.id} className="border-t border-slate-100">
@@ -175,7 +184,17 @@ export default async function OrderDetail({ params }: { params: { id: string } }
                     })()}
                   </td>
                   <td className="py-2 text-right">{money(it.quantity * it.unitCost, po.currency)}</td>
-                  <td className="py-2 text-right text-blue-600">{shipped || "—"}</td>
+                  <td className="py-2 text-right">
+                    {inTransit > 0 ? (
+                      <span className="text-blue-600">{inTransit}</span>
+                    ) : shipped > 0 ? (
+                      <span className="text-emerald-600" title={`All ${shipped} shipped units arrived`}>
+                        ✓
+                      </span>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
                   <td className="py-2 text-right">
                     <span className={rec >= it.quantity && it.quantity > 0 ? "font-semibold text-emerald-600" : ""}>
                       {rec}
