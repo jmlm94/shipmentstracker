@@ -49,17 +49,34 @@ const CARRIERS = [
 const METHOD_DISP: Record<string, string> = { AIR: "Air ✈️", SEA: "Sea 🚢" };
 const CARRIER_DISP: Record<string, string> = Object.fromEntries(CARRIERS);
 
+// Split a pasted blob of tracking numbers into clean tokens. Accepts one per
+// line, or separated by commas / semicolons / tabs / spaces — whatever Excel
+// or a carrier email produces.
+function parseTrackingList(text: string): string[] {
+  return text
+    .split(/[\s,;]+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
 // Per-box tracking table: one row per box, with the line's units / weight /
-// method / carrier copied down and an editable tracking number each.
+// method / carrier copied down and an editable tracking number each. Numbers
+// can be typed one by one, pasted in bulk into the paste area, or pasted as a
+// multi-line list into any row (fills downward from that row).
 function PerBoxTracking({
   line,
   onChange,
+  onBulk,
   indexErr,
 }: {
   line: Line;
   onChange: (k: number, v: string) => void;
+  onBulk: (start: number, values: string[]) => void;
   indexErr: (k: number) => string | undefined;
 }) {
+  const [bulk, setBulk] = useState("");
+  const [bulkNote, setBulkNote] = useState<string | null>(null);
+
   const n = Number(line.boxCount) || 0;
   if (n <= 0) {
     return (
@@ -68,35 +85,86 @@ function PerBoxTracking({
   }
   const method = METHOD_DISP[line.shippingMethod] || "—";
   const carrier = CARRIER_DISP[line.carrier] || "—";
+
+  function fillFromBulk() {
+    const tokens = parseTrackingList(bulk);
+    if (tokens.length === 0) return;
+    onBulk(0, tokens);
+    setBulkNote(
+      tokens.length >= n
+        ? `✅ Filled all ${n} boxes${tokens.length > n ? ` (${tokens.length - n} extra number${tokens.length - n === 1 ? "" : "s"} ignored)` : ""}.`
+        : `Filled boxes 1–${tokens.length} of ${n} — ${n - tokens.length} still need a number.`
+    );
+    setBulk("");
+  }
+
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200">
-      <div className="hidden bg-slate-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:grid sm:grid-cols-[3rem_1fr_1.6fr]">
-        <div>Box</div>
-        <div>Details (copied)</div>
-        <div>Tracking # *</div>
-      </div>
-      <div className="max-h-80 divide-y divide-slate-100 overflow-auto">
-        {Array.from({ length: n }, (_, k) => (
-          <div
-            key={k}
-            className="grid grid-cols-1 gap-1 px-3 py-2 sm:grid-cols-[3rem_1fr_1.6fr] sm:items-center"
+    <div>
+      {/* Bulk paste — one tracking number per box, assigned in box order. */}
+      <div className="mb-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-2.5">
+        <div className="mb-1 text-xs font-medium text-slate-600">
+          📋 Have all {n} tracking numbers? Paste them here — one per box, in box order.
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <textarea
+            className="input flex-1 py-1.5 text-sm"
+            rows={2}
+            placeholder="One per line, or separated by commas/spaces (copy straight from Excel or the carrier email)"
+            value={bulk}
+            onChange={(e) => setBulk(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={fillFromBulk}
+            disabled={parseTrackingList(bulk).length === 0}
+            className="btn-secondary shrink-0 self-start disabled:opacity-40"
           >
-            <div className="text-xs font-semibold text-slate-500">#{k + 1}</div>
-            <div className="text-xs text-muted">
-              {line.unitsPerBox || "?"} units · {line.weightPerBox || "?"} lbs · {method} ·{" "}
-              {carrier}
+            Fill {Math.min(parseTrackingList(bulk).length, n) || ""} box
+            {Math.min(parseTrackingList(bulk).length, n) === 1 ? "" : "es"} ↓
+          </button>
+        </div>
+        {bulkNote && <p className="mt-1 text-xs text-emerald-700">{bulkNote}</p>}
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-slate-200">
+        <div className="hidden bg-slate-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:grid sm:grid-cols-[3rem_1fr_1.6fr]">
+          <div>Box</div>
+          <div>Details (copied)</div>
+          <div>Tracking # *</div>
+        </div>
+        <div className="max-h-80 divide-y divide-slate-100 overflow-auto">
+          {Array.from({ length: n }, (_, k) => (
+            <div
+              key={k}
+              className="grid grid-cols-1 gap-1 px-3 py-2 sm:grid-cols-[3rem_1fr_1.6fr] sm:items-center"
+            >
+              <div className="text-xs font-semibold text-slate-500">#{k + 1}</div>
+              <div className="text-xs text-muted">
+                {line.unitsPerBox || "?"} units · {line.weightPerBox || "?"} lbs · {method} ·{" "}
+                {carrier}
+              </div>
+              <div>
+                <input
+                  className="input py-1.5"
+                  placeholder={`Tracking # for box ${k + 1}`}
+                  value={line.boxTracking?.[k] || ""}
+                  onChange={(e) => onChange(k, e.target.value)}
+                  onPaste={(e) => {
+                    // Pasting a multi-number list into any row distributes it
+                    // downward from that row (Excel-style).
+                    const tokens = parseTrackingList(e.clipboardData.getData("text"));
+                    if (tokens.length > 1) {
+                      e.preventDefault();
+                      onBulk(k, tokens);
+                      setBulkNote(null);
+                    }
+                  }}
+                />
+                {indexErr(k) && <p className="err">{indexErr(k)}</p>}
+              </div>
             </div>
-            <div>
-              <input
-                className="input py-1.5"
-                placeholder={`Tracking # for box ${k + 1}`}
-                value={line.boxTracking?.[k] || ""}
-                onChange={(e) => onChange(k, e.target.value)}
-              />
-              {indexErr(k) && <p className="err">{indexErr(k)}</p>}
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -161,6 +229,21 @@ export function SubmitForm({ internal = false }: { internal?: boolean }) {
       })
     );
     clearErr(`lines.${i}.boxTracking.${k}`);
+  }
+  // Assign a pasted list of tracking numbers to boxes, in order, starting at
+  // `start`. Extra numbers beyond the box count are ignored.
+  function setBoxTrackingBulk(i: number, start: number, values: string[]) {
+    setLines((prev) =>
+      prev.map((l, idx) => {
+        if (idx !== i) return l;
+        const n = Number(l.boxCount) || 0;
+        const arr = [...(l.boxTracking || [])];
+        while (arr.length < n) arr.push("");
+        for (let k = 0; k < values.length && start + k < n; k++) arr[start + k] = values[k];
+        return { ...l, boxTracking: arr };
+      })
+    );
+    for (let k = 0; k < values.length; k++) clearErr(`lines.${i}.boxTracking.${start + k}`);
   }
   function addLine() {
     setLines((p) => [...p, emptyLine()]);
@@ -595,6 +678,7 @@ export function SubmitForm({ internal = false }: { internal?: boolean }) {
                     line={l}
                     indexErr={(k) => err(`lines.${i}.boxTracking.${k}`)}
                     onChange={(k, v) => setBoxTracking(i, k, v)}
+                    onBulk={(start, values) => setBoxTrackingBulk(i, start, values)}
                   />
                 )}
               </div>
