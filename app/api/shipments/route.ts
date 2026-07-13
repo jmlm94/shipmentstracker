@@ -27,6 +27,31 @@ export async function POST(req: Request) {
 
   const data = parsed.data;
 
+  // Resolve the purchase order — by id (chosen in the picker) or by the code
+  // typed manually — and refuse shipments against orders that are already
+  // fully fulfilled or cancelled, so nobody ships "on top of" a closed order.
+  let po = data.purchaseOrderId
+    ? await prisma.purchaseOrder.findUnique({ where: { id: data.purchaseOrderId } })
+    : null;
+  if (!po && data.poNumber?.trim()) {
+    po = await prisma.purchaseOrder.findFirst({
+      where: { code: { equals: data.poNumber.trim(), mode: "insensitive" } },
+    });
+  }
+  if (po) {
+    const blocked: Partial<Record<typeof po.status, string>> = {
+      RECEIVED: `Order ${po.code} has already been fully fulfilled — no more shipments can be added to it. Please contact the Carbinox Team for support.`,
+      CANCELLED: `Order ${po.code} was cancelled — no shipments can be added to it. Please contact the Carbinox Team for support.`,
+      DRAFT: `Order ${po.code} isn't finalized yet — please contact the Carbinox Team before shipping against it.`,
+    };
+    const msg = blocked[po.status];
+    if (msg) return NextResponse.json({ fieldErrors: { poNumber: msg } }, { status: 409 });
+    // A code typed by hand that matches a real open order gets properly
+    // linked, so its boxes roll up to the PO like picker-selected ones.
+    data.purchaseOrderId = po.id;
+    data.poNumber = po.code;
+  }
+
   // Generate a unique batch code, retrying on the rare collision.
   let code = generateShipmentCode();
   for (let attempt = 0; attempt < 5; attempt++) {
