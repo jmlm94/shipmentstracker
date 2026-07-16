@@ -55,15 +55,6 @@ export default async function OrderDetail({ params }: { params: { id: string } }
   const onTheWayUnits = po.items.reduce((s, it) => s + onTheWay(it.productId), 0);
   const meta = PO_STATUS_META[po.status];
 
-  // Show "Undo sync" only while the latest "Sync received" wipe hasn't been
-  // reverted (the revert writes an EDIT marker newer than the sync events).
-  const lastManualSync = po.events.find((e) => e.kind === "RECEIVED" && e.source === "manual sync");
-  const lastRevert = po.events.find(
-    (e) => e.kind === "EDIT" && e.message.startsWith("Reverted 'Sync received'")
-  );
-  const hasUndoableSync =
-    !!lastManualSync && (!lastRevert || lastRevert.createdAt < lastManualSync.createdAt);
-
   return (
     <div className="max-w-4xl">
       <Link href="/dashboard/orders" className="text-sm text-muted hover:text-ink">
@@ -90,7 +81,6 @@ export default async function OrderDetail({ params }: { params: { id: string } }
           code={po.code}
           status={po.status}
           hasShipments={po.shipments.length > 0}
-          hasUndoableSync={hasUndoableSync}
         />
       </div>
 

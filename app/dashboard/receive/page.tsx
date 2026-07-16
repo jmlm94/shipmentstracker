@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PO_STATUS_META } from "@/lib/poStatus";
+import { DailyDeliveries } from "@/components/DailyDeliveries";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Receive · Shipments Tracker" };
@@ -13,6 +14,31 @@ export default async function ReceivePage() {
     include: { items: true },
   });
 
+  // Boxes delivered in the last 14 days, for the daily receiving digest.
+  const since = new Date();
+  since.setDate(since.getDate() - 14);
+  const deliveredBoxes = await prisma.box.findMany({
+    where: { deliveredAt: { gte: since } },
+    orderBy: { deliveredAt: "desc" },
+    select: {
+      deliveredAt: true,
+      productName: true,
+      productId: true,
+      unitsPerBox: true,
+      unitsReceived: true,
+      shipment: { select: { code: true, supplierName: true } },
+    },
+  });
+  const digest = deliveredBoxes
+    .filter((b) => b.deliveredAt)
+    .map((b) => ({
+      deliveredAt: b.deliveredAt!.toISOString(),
+      productName: b.productName || b.productId,
+      units: b.unitsReceived ?? b.unitsPerBox,
+      shipmentCode: b.shipment.code,
+      supplierName: b.shipment.supplierName,
+    }));
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-2">
@@ -24,6 +50,8 @@ export default async function ReceivePage() {
           </p>
         </div>
       </div>
+
+      <DailyDeliveries boxes={digest} />
 
       {orders.length === 0 ? (
         <div className="card p-8 text-center text-sm text-muted">

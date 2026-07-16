@@ -10,13 +10,11 @@ export function PoActions({
   code,
   status,
   hasShipments,
-  hasUndoableSync = false,
 }: {
   id: string;
   code: string;
   status: string;
   hasShipments: boolean;
-  hasUndoableSync?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -58,21 +56,6 @@ export function PoActions({
     }
   }
 
-  async function undoSync() {
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/orders/${id}/undo-sync`, { method: "POST" });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast(d.error || "Couldn't undo.", "error");
-        return;
-      }
-      toast(`Restored ${d.restored} item count${d.restored === 1 ? "" : "s"}. ✅`, "success");
-      router.refresh();
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function remove() {
     if (!confirm(`Delete ${code}? Linked shipments are kept but unlinked.`)) return;
@@ -106,11 +89,6 @@ export function PoActions({
       {hasShipments && (
         <button onClick={updateTracking} disabled={tracking || busy} className="btn-secondary">
           {tracking ? "📡 Checking carriers…" : "📡 Update tracking"}
-        </button>
-      )}
-      {hasUndoableSync && (
-        <button onClick={undoSync} disabled={busy} className="btn-secondary">
-          ↩️ Undo sync
         </button>
       )}
       {status === "RECEIVED" ? (
