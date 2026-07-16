@@ -3,20 +3,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "@/components/Toaster";
 
 export function PoActions({
   id,
   code,
   status,
   hasShipments,
+  hasUndoableSync = false,
 }: {
   id: string;
   code: string;
   status: string;
   hasShipments: boolean;
+  hasUndoableSync?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [tracking, setTracking] = useState(false);
 
   async function setStatus(s: string) {
     setBusy(true);
@@ -29,11 +33,45 @@ export function PoActions({
     router.refresh();
   }
 
-  async function syncReceived() {
+  // Query EasyPost live for this order's active tracking numbers.
+  async function updateTracking() {
+    setTracking(true);
+    try {
+      const res = await fetch(`/api/orders/${id}/refresh-tracking`, { method: "POST" });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast(d.error || "Couldn't update tracking.", "error");
+        return;
+      }
+      const bits = [`Checked ${d.checked} box${d.checked === 1 ? "" : "es"}`];
+      if (d.changed > 0) bits.push(`${d.changed} status update${d.changed === 1 ? "" : "s"}`);
+      if (d.healed > 0) bits.push(`${d.healed} delivery credit${d.healed === 1 ? "" : "s"} applied`);
+      toast(
+        d.checked === 0
+          ? "No boxes are in transit on this order."
+          : `${bits.join(" · ")}${d.changed === 0 && d.healed === 0 ? " — no news from the carriers." : ""}`,
+        d.changed > 0 || d.healed > 0 ? "success" : "info"
+      );
+      router.refresh();
+    } finally {
+      setTracking(false);
+    }
+  }
+
+  async function undoSync() {
     setBusy(true);
-    await fetch(`/api/orders/${id}/sync-received`, { method: "POST" });
-    setBusy(false);
-    router.refresh();
+    try {
+      const res = await fetch(`/api/orders/${id}/undo-sync`, { method: "POST" });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast(d.error || "Couldn't undo.", "error");
+        return;
+      }
+      toast(`Restored ${d.restored} item count${d.restored === 1 ? "" : "s"}. ✅`, "success");
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function remove() {
@@ -66,8 +104,13 @@ export function PoActions({
         ✏️ Edit
       </Link>
       {hasShipments && (
-        <button onClick={syncReceived} disabled={busy} className="btn-secondary">
-          🔄 Sync received
+        <button onClick={updateTracking} disabled={tracking || busy} className="btn-secondary">
+          {tracking ? "📡 Checking carriers…" : "📡 Update tracking"}
+        </button>
+      )}
+      {hasUndoableSync && (
+        <button onClick={undoSync} disabled={busy} className="btn-secondary">
+          ↩️ Undo sync
         </button>
       )}
       {status === "RECEIVED" ? (
