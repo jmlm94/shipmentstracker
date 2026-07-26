@@ -26,10 +26,17 @@ export function ProductCombobox({
   selected,
   onSelect,
   error,
+  allowedIds,
+  allowedNote,
 }: {
   selected: Selected;
   onSelect: (p: CatalogProduct) => void;
   error?: string;
+  // When set, only these product ids are offered (the products on the chosen
+  // purchase order). Falls back to the full catalog if none of them resolve —
+  // an unfillable picker would brick the form.
+  allowedIds?: string[];
+  allowedNote?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -39,13 +46,20 @@ export function ProductCombobox({
     loadCatalog().then(setCatalog);
   }, []);
 
+  const base = useMemo(() => {
+    if (!allowedIds || allowedIds.length === 0) return catalog;
+    const restricted = catalog.filter((p) => allowedIds.includes(p.id));
+    return restricted.length > 0 ? restricted : catalog;
+  }, [catalog, allowedIds]);
+  const restricted = base.length !== catalog.length;
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return catalog;
-    return catalog.filter(
+    if (!q) return base;
+    return base.filter(
       (p) => p.title.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
     );
-  }, [query, catalog]);
+  }, [query, base]);
 
   return (
     <>
@@ -106,6 +120,11 @@ export function ProductCombobox({
               </button>
             </div>
             <div className="overflow-auto p-3">
+              {restricted && (
+                <div className="mb-2 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                  {allowedNote || "Showing only the products on your purchase order."}
+                </div>
+              )}
               <div className="mb-2 text-xs text-muted">
                 {results.length} product{results.length === 1 ? "" : "s"}
               </div>

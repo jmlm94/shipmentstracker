@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Item = { name: string; image: string; sku: string; qty: number };
+type Item = { productId?: string; name: string; image: string; sku: string; qty: number };
 type Order = {
   id: string;
   code: string;
@@ -19,7 +19,9 @@ export function OrderPicker({
   error,
 }: {
   poNumber: string;
-  onChange: (code: string, id: string | null) => void;
+  // productIds: the products on the selected order (undefined when the PO was
+  // typed manually, so the form can't restrict the product list).
+  onChange: (code: string, id: string | null, productIds?: string[]) => void;
   error?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -69,7 +71,11 @@ export function OrderPicker({
   }, [orders, query]);
 
   function confirmOrder(o: Order) {
-    onChange(o.code, o.id);
+    onChange(
+      o.code,
+      o.id,
+      o.items.map((it) => it.productId || "").filter(Boolean)
+    );
     setOpen(false);
     setViewing(null);
     setQuery("");

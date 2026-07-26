@@ -50,6 +50,26 @@ export async function POST(req: Request) {
     // linked, so its boxes roll up to the PO like picker-selected ones.
     data.purchaseOrderId = po.id;
     data.poNumber = po.code;
+
+    // Only products that are actually on the order can be shipped against it.
+    // (Skipped for legacy orders whose items carry no product ids.)
+    const poItems = await prisma.purchaseOrderItem.findMany({
+      where: { purchaseOrderId: po.id },
+      select: { productId: true },
+    });
+    const allowed = new Set(poItems.map((it) => it.productId).filter(Boolean));
+    if (allowed.size > 0) {
+      const fieldErrors: Record<string, string> = {};
+      data.lines.forEach((l, i) => {
+        if (!allowed.has(l.productId)) {
+          fieldErrors[`lines.${i}.productId`] =
+            `${l.productName || "This product"} isn't on order ${po!.code} — pick a product from that order, or ask the Carbinox Team to add it first.`;
+        }
+      });
+      if (Object.keys(fieldErrors).length > 0) {
+        return NextResponse.json({ fieldErrors }, { status: 422 });
+      }
+    }
   }
 
   // Generate a unique batch code, retrying on the rare collision.

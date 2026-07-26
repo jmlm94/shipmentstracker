@@ -176,6 +176,9 @@ export function SubmitForm({ internal = false }: { internal?: boolean }) {
   const [supplierName, setSupplierName] = useState("");
   const [poNumber, setPoNumber] = useState("");
   const [purchaseOrderId, setPurchaseOrderId] = useState<string | null>(null);
+  // Products on the selected PO — the product picker is limited to these.
+  // null = no restriction (no PO picked yet, or PO number typed manually).
+  const [poProductIds, setPoProductIds] = useState<string[] | null>(null);
   const [supplierEmail, setSupplierEmail] = useState("");
   const [shipmentDate, setShipmentDate] = useState("");
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState("");
@@ -412,9 +415,21 @@ export function SubmitForm({ internal = false }: { internal?: boolean }) {
             <label className="label">Purchase order *</label>
             <OrderPicker
               poNumber={poNumber}
-              onChange={(code, id) => {
+              onChange={(code, id, productIds) => {
                 setPoNumber(code);
                 setPurchaseOrderId(id);
+                const allowed = productIds && productIds.length > 0 ? productIds : null;
+                setPoProductIds(allowed);
+                // Clear any already-picked products that aren't on the new PO.
+                if (allowed) {
+                  setLines((prev) =>
+                    prev.map((l) =>
+                      l.productId && !allowed.includes(l.productId)
+                        ? { ...l, productId: "", productName: "", productSku: "", productImage: "" }
+                        : l
+                    )
+                  );
+                }
                 clearErr("poNumber");
               }}
               error={err("poNumber")}
@@ -560,6 +575,12 @@ export function SubmitForm({ internal = false }: { internal?: boolean }) {
                   }}
                   onSelect={(p) => selectProduct(i, p)}
                   error={err(`lines.${i}.productId`)}
+                  allowedIds={poProductIds ?? undefined}
+                  allowedNote={
+                    poNumber
+                      ? `Showing only the products on ${poNumber}.`
+                      : undefined
+                  }
                 />
               </div>
 

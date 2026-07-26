@@ -11,7 +11,9 @@ export async function GET() {
     where: { status: { in: ["OPEN", "PARTIALLY_RECEIVED"] } },
     orderBy: { createdAt: "desc" },
     include: {
-      items: { select: { productName: true, productImage: true, sku: true, quantity: true } },
+      items: {
+        select: { productId: true, productName: true, productImage: true, sku: true, quantity: true },
+      },
     },
   });
 
@@ -26,6 +28,7 @@ export async function GET() {
       expectedDate: o.expectedDate ? o.expectedDate.toISOString().slice(0, 10) : null,
       totalUnits: o.items.reduce((s, it) => s + it.quantity, 0),
       items: o.items.map((it) => ({
+        productId: it.productId,
         name: it.productName,
         image: publicImage(it.productImage),
         sku: it.sku || "",
