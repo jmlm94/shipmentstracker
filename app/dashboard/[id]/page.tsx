@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { BoxStatusEditor } from "@/components/BoxStatusEditor";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { DeleteShipmentButton } from "@/components/DeleteShipmentButton";
+import { LineEditor } from "@/components/LineEditor";
 import { CARRIER_LABEL, METHOD_LABEL } from "@/lib/status";
 import { trackingUrl } from "@/lib/trackingLinks";
 import { daysSince, etaFor, transitSeverity } from "@/lib/eta";
@@ -153,6 +154,14 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
                     {anyDiscrepancy && <span className="font-semibold text-red-600">· ⚠ check</span>}
                   </div>
                 </div>
+                <LineEditor
+                  shipmentId={shipment.id}
+                  lineId={line.id}
+                  boxCount={line.boxCount}
+                  unitsPerBox={line.unitsPerBox}
+                  trackingNumber={line.trackingNumber}
+                  trackingPerBox={line.trackingPerBox}
+                />
               </div>
 
               {/* Boxes in this line */}
