@@ -46,7 +46,7 @@ async function exportOrders(lineLevel: boolean): Promise<Response> {
       "Shipping & other costs",
       "Total",
       "Paid",
-      "Balance due",
+      "Balance due (goods, excl. prepaid shipping)",
       "Landed cost per unit",
     ];
     const rows = orders.map((o) => {

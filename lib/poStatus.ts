@@ -40,34 +40,42 @@ export type PoFinancialItem = {
 export type PoFinancials = {
   subtotal: number;
   costsTotal: number; // shipping + other charges − credits
+  /** SHIPPING-kind costs only — paid in advance, so never part of the balance. */
+  shippingTotal: number;
   total: number;
   orderedUnits: number;
   /** True per-unit cost of goods: total ÷ ordered units. Null when no units. */
   landedUnitCost: number | null;
   paid: number;
-  /** total − paid. Negative = overpaid. */
+  /**
+   * What's still owed to the supplier for the GOODS: (total − shipping) − paid.
+   * Shipping is always paid in advance and settled separately, so it counts
+   * toward the total but never toward the balance due. Negative = overpaid.
+   */
   balance: number;
 };
 
 // The importer's key numbers for one purchase order.
 export function poFinancials(
   items: PoFinancialItem[],
-  costs: { amount: number }[],
+  costs: { amount: number; kind?: string }[],
   payments: { amount: number | null }[] = []
 ): PoFinancials {
   const subtotal = items.reduce((s, it) => s + it.quantity * it.unitCost, 0);
   const costsTotal = costs.reduce((s, c) => s + c.amount, 0);
+  const shippingTotal = costs.reduce((s, c) => s + (c.kind === "SHIPPING" ? c.amount : 0), 0);
   const total = subtotal + costsTotal;
   const orderedUnits = items.reduce((s, it) => s + it.quantity, 0);
   const paid = payments.reduce((s, p) => s + (p.amount || 0), 0);
   return {
     subtotal,
     costsTotal,
+    shippingTotal,
     total,
     orderedUnits,
     landedUnitCost: orderedUnits > 0 ? total / orderedUnits : null,
     paid,
-    balance: total - paid,
+    balance: total - shippingTotal - paid,
   };
 }
 

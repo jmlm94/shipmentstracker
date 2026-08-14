@@ -251,6 +251,11 @@ export default async function OrderDetail({ params }: { params: { id: string } }
               {money(Math.abs(fin.balance), po.currency)}
             </span>
           </div>
+          {fin.shippingTotal !== 0 && (
+            <p className="text-right text-[11px] text-muted">
+              goods only — shipping ({money(fin.shippingTotal, po.currency)}) is paid in advance
+            </p>
+          )}
         </div>
       </section>
 

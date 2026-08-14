@@ -29,7 +29,7 @@ describe("poFinancials", () => {
     { quantity: 100, unitCost: 10 }, // 1000
     { quantity: 50, unitCost: 20 }, // 1000
   ];
-  const costs = [{ amount: 300 }, { amount: -50 }]; // net 250
+  const costs = [{ amount: 300 }, { amount: -50 }]; // net 250, no shipping
 
   it("computes subtotal, costs, total, landed unit cost", () => {
     const fin = poFinancials(items, costs);
@@ -49,6 +49,19 @@ describe("poFinancials", () => {
   it("flags overpayment as negative balance", () => {
     const fin = poFinancials(items, costs, [{ amount: 3000 }]);
     expect(fin.balance).toBe(-750);
+  });
+
+  it("excludes prepaid shipping from the balance but not the total", () => {
+    const withShipping = [
+      { amount: 300, kind: "SHIPPING" },
+      { amount: 100, kind: "OTHER" },
+      { amount: -50, kind: "OTHER" },
+    ];
+    const fin = poFinancials(items, withShipping, [{ amount: 1000 }]);
+    expect(fin.total).toBe(2350); // shipping still in the total
+    expect(fin.shippingTotal).toBe(300);
+    // balance owes goods + other adjustments only: 2000 + 50 − 1000
+    expect(fin.balance).toBe(1050);
   });
 
   it("returns null landed cost when there are no units", () => {
