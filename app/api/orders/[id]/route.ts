@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
 import { orderBodySchema, statusFromReceived } from "@/lib/po";
+import { poInTransitByProduct } from "@/lib/receiving";
 import { PO_STATUS_META } from "@/lib/poStatus";
 import { logPoEvent } from "@/lib/poLog";
 
@@ -30,8 +31,13 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     unitCost: it.unitCost,
     receivedQty: it.receivedQty ?? 0,
   }));
+  const inTransit = await poInTransitByProduct(params.id);
   const status = statusFromReceived(
-    items.map((it) => ({ quantity: it.quantity, receivedQty: it.receivedQty })),
+    items.map((it) => ({
+      quantity: it.quantity,
+      receivedQty: it.receivedQty,
+      inTransit: inTransit.get(it.productId) || 0,
+    })),
     existing.status
   );
 

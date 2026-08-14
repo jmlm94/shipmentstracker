@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PO_STATUS_META } from "@/lib/poStatus";
+import { effectiveReceived } from "@/lib/po";
 import { DailyDeliveries } from "@/components/DailyDeliveries";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,14 @@ export default async function ReceivePage() {
   const orders = await prisma.purchaseOrder.findMany({
     where: { status: { in: ["OPEN", "PARTIALLY_RECEIVED"] } },
     orderBy: { orderDate: "asc" },
-    include: { items: true },
+    include: {
+      items: true,
+      shipments: {
+        include: {
+          boxes: { select: { productId: true, unitsReceived: true, unitsPerBox: true, status: true } },
+        },
+      },
+    },
   });
 
   // Boxes delivered in the last 14 days, for the daily receiving digest.
@@ -61,7 +69,20 @@ export default async function ReceivePage() {
         <div className="space-y-3">
           {orders.map((o) => {
             const ordered = o.items.reduce((s, it) => s + it.quantity, 0);
-            const received = o.items.reduce((s, it) => s + Math.min(it.receivedQty, it.quantity), 0);
+            // Units in undelivered boxes are on the way — never counted as received.
+            const inTransit = new Map<string, number>();
+            for (const sh of o.shipments) {
+              for (const b of sh.boxes) {
+                if (b.unitsReceived == null && b.status !== "LOST" && b.status !== "DAMAGED") {
+                  inTransit.set(b.productId, (inTransit.get(b.productId) || 0) + b.unitsPerBox);
+                }
+              }
+            }
+            const received = o.items.reduce(
+              (s, it) =>
+                s + effectiveReceived(it.quantity, it.receivedQty, inTransit.get(it.productId) || 0),
+              0
+            );
             const pct = ordered > 0 ? Math.round((received / ordered) * 100) : 0;
             const meta = PO_STATUS_META[o.status];
             return (

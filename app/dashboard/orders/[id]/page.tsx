@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PO_STATUS_META, money, unifyCosts, poFinancials, itemLandedUnitCost } from "@/lib/poStatus";
+import { effectiveReceived } from "@/lib/po";
 import { CountUp } from "@/components/CountUp";
 import { PoActions } from "../PoActions";
 import { PoPayments } from "../PoPayments";
@@ -47,7 +48,10 @@ export default async function OrderDetail({ params }: { params: { id: string } }
   const costs = unifyCosts(po);
   const fin = poFinancials(po.items, po.costs, po.payments);
   const { subtotal, total, orderedUnits } = fin;
-  const receivedUnits = po.items.reduce((s, it) => s + Math.min(it.receivedQty, it.quantity), 0);
+  const receivedUnits = po.items.reduce(
+    (s, it) => s + effectiveReceived(it.quantity, it.receivedQty, onTheWay(it.productId)),
+    0
+  );
   const shippedUnits = po.items.reduce(
     (s, it) => s + Math.min(shippedByProduct.get(it.productId) || 0, it.quantity),
     0
@@ -162,8 +166,10 @@ export default async function OrderDetail({ params }: { params: { id: string } }
           </thead>
           <tbody>
             {po.items.map((it) => {
-              const rec = Math.min(it.receivedQty, it.quantity);
               const inTransit = onTheWay(it.productId);
+              // Units on the way are ON THE WAY: they never count as received,
+              // and a row with units in transit is never complete.
+              const rec = effectiveReceived(it.quantity, it.receivedQty, inTransit);
               const remaining = Math.max(0, it.quantity - rec);
               return (
                 <tr key={it.id} className="border-t border-slate-100">

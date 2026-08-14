@@ -41,6 +41,23 @@ export function nextReceivedTotals(
   });
 }
 
+// Units per product sitting in undelivered (and not written-off) boxes across
+// a PO's linked shipments. Used to keep the order's status honest: while units
+// are on the way, the order can never auto-complete.
+export async function poInTransitByProduct(poId: string): Promise<Map<string, number>> {
+  const boxes = await prisma.box.findMany({
+    where: {
+      shipment: { purchaseOrderId: poId },
+      unitsReceived: null,
+      status: { notIn: ["LOST", "DAMAGED"] },
+    },
+    select: { productId: true, unitsPerBox: true },
+  });
+  const m = new Map<string, number>();
+  for (const b of boxes) m.set(b.productId, (m.get(b.productId) || 0) + b.unitsPerBox);
+  return m;
+}
+
 // Roll up units received in tracked boxes (box.unitsReceived) into the linked
 // purchase order's per-item receivedQty, then recompute the PO status. This is
 // the connection between a delivered package and its purchase order.
@@ -54,21 +71,36 @@ export async function syncPoReceivedFromShipments(
     where: { id: poId },
     include: {
       items: true,
-      shipments: { include: { boxes: { select: { productId: true, unitsReceived: true } } } },
+      shipments: {
+        include: {
+          boxes: {
+            select: { productId: true, unitsReceived: true, unitsPerBox: true, status: true },
+          },
+        },
+      },
     },
   });
   if (!po) return;
 
   const boxDerived = new Map<string, number>();
+  const inTransit = new Map<string, number>();
   for (const s of po.shipments) {
     for (const b of s.boxes) {
       if (b.unitsReceived != null) {
         boxDerived.set(b.productId, (boxDerived.get(b.productId) || 0) + b.unitsReceived);
+      } else if (b.status !== "LOST" && b.status !== "DAMAGED") {
+        // Undelivered, not written off → still on the way. While these exist
+        // the order must not read as complete.
+        inTransit.set(b.productId, (inTransit.get(b.productId) || 0) + b.unitsPerBox);
       }
     }
   }
 
   const next = nextReceivedTotals(po.items, boxDerived, mode);
+  const nextWithTransit = next.map((n, i) => ({
+    ...n,
+    inTransit: inTransit.get(po.items[i].productId) || 0,
+  }));
 
   // Skip the write if nothing changed (avoids needless churn on every box scan).
   const changed = next.some(
@@ -76,7 +108,7 @@ export async function syncPoReceivedFromShipments(
       n.receivedQty !== po.items[i].receivedQty ||
       n.receivedFromBoxes !== po.items[i].receivedFromBoxes
   );
-  const nextStatus = statusFromReceived(next, po.status);
+  const nextStatus = statusFromReceived(nextWithTransit, po.status);
   if (!changed && nextStatus === po.status) return;
 
   await prisma.$transaction([

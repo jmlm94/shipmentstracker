@@ -36,17 +36,35 @@ export const orderBodySchema = z.object({
     .default([]),
 });
 
+// THE RULE: units on the way are ON THE WAY — they are never counted as
+// received, and an item with units in transit is never "complete". When the
+// recorded received total and the in-transit units would together exceed the
+// ordered quantity (double-counted units, phantom boxes, stale manual entries),
+// the in-transit units win: received is capped at ordered − in-transit.
+export function effectiveReceived(
+  quantity: number,
+  receivedQty: number,
+  inTransit: number
+): number {
+  return Math.max(0, Math.min(receivedQty, quantity, quantity - inTransit));
+}
+
 // Derive a status from received vs ordered quantities. CANCELLED is sticky and
-// only changed via the explicit status action.
+// only changed via the explicit status action. Items may carry `inTransit`
+// (units in undelivered boxes): while anything is in transit the order can
+// never auto-complete to RECEIVED.
 export function statusFromReceived(
-  items: { quantity: number; receivedQty: number }[],
+  items: { quantity: number; receivedQty: number; inTransit?: number }[],
   current: string
 ): "DRAFT" | "OPEN" | "PARTIALLY_RECEIVED" | "RECEIVED" | "CANCELLED" {
   // DRAFT and CANCELLED are sticky — only changed via an explicit action.
   if (current === "DRAFT") return "DRAFT";
   if (current === "CANCELLED") return "CANCELLED";
   const ordered = items.reduce((s, it) => s + it.quantity, 0);
-  const received = items.reduce((s, it) => s + Math.min(it.receivedQty, it.quantity), 0);
+  const received = items.reduce(
+    (s, it) => s + effectiveReceived(it.quantity, it.receivedQty, it.inTransit ?? 0),
+    0
+  );
   if (ordered > 0 && received >= ordered) return "RECEIVED";
   if (received > 0) return "PARTIALLY_RECEIVED";
   return "OPEN";

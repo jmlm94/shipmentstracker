@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
 import { statusFromReceived } from "@/lib/po";
+import { poInTransitByProduct } from "@/lib/receiving";
 import { PO_STATUS_META } from "@/lib/poStatus";
 import { logPoEvent } from "@/lib/poLog";
 
@@ -27,10 +28,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!po) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const byId = new Map(parsed.data.items.map((i) => [i.id, i.receivedQty]));
+  const inTransit = await poInTransitByProduct(po.id);
   const next = po.items.map((it) => ({
     id: it.id,
     quantity: it.quantity,
     receivedQty: byId.has(it.id) ? Math.min(it.quantity, Math.max(0, byId.get(it.id)!)) : it.receivedQty,
+    inTransit: inTransit.get(it.productId) || 0,
   }));
 
   // A draft becomes active the moment you start receiving against it.
