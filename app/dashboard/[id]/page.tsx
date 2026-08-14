@@ -6,7 +6,6 @@ import { BoxStatusEditor } from "@/components/BoxStatusEditor";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { DeleteShipmentButton } from "@/components/DeleteShipmentButton";
 import { LineEditor } from "@/components/LineEditor";
-import { TrackingReplace } from "@/components/TrackingReplace";
 import { CARRIER_LABEL, METHOD_LABEL } from "@/lib/status";
 import { trackingUrl } from "@/lib/trackingLinks";
 import { daysSince, etaFor, transitSeverity } from "@/lib/eta";
@@ -106,14 +105,6 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
           )}
         </div>
         <div className="flex items-center gap-2">
-          <TrackingReplace
-            shipmentId={shipment.id}
-            code={shipment.code}
-            pendingBoxes={
-              allBoxes.filter((b) => b.status !== "DELIVERED" && b.status !== "ADDED_IN_STOCK")
-                .length
-            }
-          />
           <a
             href={`/api/shipments/${shipment.id}/labels`}
             target="_blank"
