@@ -6,6 +6,7 @@ import { BoxStatusEditor } from "@/components/BoxStatusEditor";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { DeleteShipmentButton } from "@/components/DeleteShipmentButton";
 import { LineEditor } from "@/components/LineEditor";
+import { MarkAllDelivered } from "@/components/MarkAllDelivered";
 import { CARRIER_LABEL, METHOD_LABEL } from "@/lib/status";
 import { trackingUrl } from "@/lib/trackingLinks";
 import { daysSince, etaFor, transitSeverity } from "@/lib/eta";
@@ -105,6 +106,15 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
           )}
         </div>
         <div className="flex items-center gap-2">
+          <MarkAllDelivered
+            shipmentId={shipment.id}
+            code={shipment.code}
+            pendingBoxes={
+              allBoxes.filter(
+                (b) => !["DELIVERED", "ADDED_IN_STOCK", "LOST", "DAMAGED"].includes(b.status)
+              ).length
+            }
+          />
           <a
             href={`/api/shipments/${shipment.id}/labels`}
             target="_blank"
