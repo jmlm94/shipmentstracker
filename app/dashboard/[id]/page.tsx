@@ -7,6 +7,7 @@ import { PhotoUpload } from "@/components/PhotoUpload";
 import { DeleteShipmentButton } from "@/components/DeleteShipmentButton";
 import { LineEditor } from "@/components/LineEditor";
 import { MarkAllDelivered } from "@/components/MarkAllDelivered";
+import { ReceiveLineUnits } from "@/components/ReceiveLineUnits";
 import { CARRIER_LABEL, METHOD_LABEL } from "@/lib/status";
 import { trackingUrl } from "@/lib/trackingLinks";
 import { daysSince, etaFor, transitSeverity } from "@/lib/eta";
@@ -164,6 +165,19 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
                     {anyDiscrepancy && <span className="font-semibold text-red-600">· ⚠ check</span>}
                   </div>
                 </div>
+                <ReceiveLineUnits
+                  shipmentId={shipment.id}
+                  lineId={line.id}
+                  productName={line.productName}
+                  pendingUnits={line.boxes.reduce(
+                    (s, b) =>
+                      s +
+                      (["DELIVERED", "ADDED_IN_STOCK", "LOST", "DAMAGED"].includes(b.status)
+                        ? 0
+                        : b.unitsPerBox),
+                    0
+                  )}
+                />
                 <LineEditor
                   shipmentId={shipment.id}
                   lineId={line.id}
