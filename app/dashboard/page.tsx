@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 
 export default async function OverviewPage() {
-  const [grouped, shipmentCount, recent, unitsAgg, discrepancyCount, poGroups, inStockAgg] =
+  const [grouped, shipmentCount, recent, unitsAgg, poGroups, inStockAgg] =
     await Promise.all([
       prisma.box.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.shipment.count(),
@@ -23,7 +23,6 @@ export default async function OverviewPage() {
         include: { boxes: { orderBy: { boxNumber: "asc" } } },
       }),
       prisma.box.aggregate({ _sum: { unitsPerBox: true } }),
-      prisma.box.count({ where: { hasDiscrepancy: true } }),
       prisma.purchaseOrder.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.box.aggregate({
         _sum: { unitsPerBox: true },
@@ -254,8 +253,8 @@ export default async function OverviewPage() {
       )}
 
       {/* Needs attention banner */}
-      {(attentionCount > 0 || discrepancyCount > 0) && (
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {attentionCount > 0 && (
+        <div className="mb-6 grid grid-cols-1 gap-3">
           {attentionCount > 0 && (
             <Link
               href={`/dashboard/shipments?status=${ATTENTION_STATUSES.join(",")}`}
@@ -272,22 +271,6 @@ export default async function OverviewPage() {
                 </div>
               </div>
               <span className="text-amber-900">→</span>
-            </Link>
-          )}
-          {discrepancyCount > 0 && (
-            <Link
-              href="/dashboard/shipments?discrepancy=1"
-              className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-5 py-4 transition hover:border-red-300"
-            >
-              <div>
-                <div className="font-semibold text-red-900">
-                  {discrepancyCount} box{discrepancyCount === 1 ? "" : "es"} with discrepancies
-                </div>
-                <div className="text-sm text-red-800">
-                  Received units or weight didn&apos;t match what was declared.
-                </div>
-              </div>
-              <span className="text-red-900">→</span>
             </Link>
           )}
         </div>

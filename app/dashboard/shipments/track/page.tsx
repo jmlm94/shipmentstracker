@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getProductImageResolver } from "@/lib/productImages";
 import { QuickTrackForm, type TrackOrder } from "./QuickTrackForm";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,7 @@ export default async function QuickTrackPage({
     },
   });
 
+  const img = await getProductImageResolver();
   const data: TrackOrder[] = orders.map((o) => {
     const shipped = new Map<string, number>();
     for (const s of o.shipments) {
@@ -32,7 +34,7 @@ export default async function QuickTrackPage({
         id: it.id,
         productId: it.productId,
         productName: it.productName,
-        productImage: it.productImage,
+        productImage: img(it.productId, it.productImage, it.productName),
         sku: it.sku,
         quantity: it.quantity,
         remaining: Math.max(0, it.quantity - (shipped.get(it.productId) || 0)),

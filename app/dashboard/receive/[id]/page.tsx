@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getProductImageResolver } from "@/lib/productImages";
 import { PO_STATUS_META } from "@/lib/poStatus";
 import { ReceivePanel } from "./ReceivePanel";
 
@@ -15,6 +16,7 @@ export default async function ReceiveOrderPage({ params }: { params: { id: strin
     },
   });
   if (!po) notFound();
+  const img = await getProductImageResolver();
 
   // Units already received per product from scanned boxes (informational).
   const shippedReceived = new Map<string, number>();
@@ -44,7 +46,7 @@ export default async function ReceiveOrderPage({ params }: { params: { id: strin
         items={po.items.map((it) => ({
           id: it.id,
           productName: it.productName,
-          productImage: it.productImage,
+          productImage: img(it.productId, it.productImage, it.productName),
           sku: it.sku,
           quantity: it.quantity,
           receivedQty: Math.min(it.receivedQty, it.quantity),

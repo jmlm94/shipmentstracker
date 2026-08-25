@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ALL_CARRIERS, ALL_STATUSES, CARRIER_LABEL, METHOD_LABEL, STATUS_META } from "@/lib/status";
 import { StatusBadge } from "@/components/StatusBadge";
 import { daysSince } from "@/lib/eta";
+import { getProductImageResolver } from "@/lib/productImages";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +86,7 @@ export default async function ShipmentsPage({
     }),
   ]);
 
+  const img = await getProductImageResolver();
   const totalBoxes = shipments.reduce((s, sh) => s + sh.boxes.length, 0);
   const anyFilter = statuses.length || carrier || method || supplier || q || discrepancy;
   const now = new Date();
@@ -202,7 +204,9 @@ export default async function ShipmentsPage({
             new Set(shipment.boxes.map((b) => METHOD_LABEL[b.shippingMethod]))
           );
           const thumbs = Array.from(
-            new Set(shipment.boxes.map((b) => b.productImage).filter(Boolean))
+            new Set(
+              shipment.boxes.map((b) => img(b.productId, b.productImage, b.productName)).filter(Boolean)
+            )
           ).slice(0, 6) as string[];
           return (
             <Link

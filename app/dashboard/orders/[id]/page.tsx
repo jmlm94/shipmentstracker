@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PO_STATUS_META, money, unifyCosts, poFinancials, itemLandedUnitCost } from "@/lib/poStatus";
 import { effectiveReceived } from "@/lib/po";
+import { getProductImageResolver } from "@/lib/productImages";
 import { CountUp } from "@/components/CountUp";
 import { PoActions } from "../PoActions";
 import { PoPayments } from "../PoPayments";
@@ -45,6 +46,7 @@ export default async function OrderDetail({ params }: { params: { id: string } }
   const onTheWay = (productId: string) =>
     Math.max(0, (shippedByProduct.get(productId) || 0) - (arrivedByProduct.get(productId) || 0));
 
+  const img = await getProductImageResolver();
   const costs = unifyCosts(po);
   const fin = poFinancials(po.items, po.costs, po.payments);
   const { subtotal, total, orderedUnits } = fin;
@@ -175,9 +177,13 @@ export default async function OrderDetail({ params }: { params: { id: string } }
                 <tr key={it.id} className="border-t border-slate-100">
                   <td className="py-2">
                     <div className="flex items-center gap-2">
-                      {it.productImage && (
+                      {img(it.productId, it.productImage, it.productName) && (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={it.productImage} alt="" className="h-8 w-8 rounded object-cover" />
+                        <img
+                          src={img(it.productId, it.productImage, it.productName)}
+                          alt=""
+                          className="h-8 w-8 rounded object-cover"
+                        />
                       )}
                       <span>
                         {it.productName}

@@ -11,6 +11,7 @@ import { ReceiveLineUnits } from "@/components/ReceiveLineUnits";
 import { CARRIER_LABEL, METHOD_LABEL } from "@/lib/status";
 import { trackingUrl } from "@/lib/trackingLinks";
 import { daysSince, etaFor, transitSeverity } from "@/lib/eta";
+import { getProductImageResolver } from "@/lib/productImages";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,7 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
   });
 
   if (!shipment) notFound();
+  const img = await getProductImageResolver();
 
   const allBoxes = shipment.lines.flatMap((l) => l.boxes);
   const totalUnits = allBoxes.reduce((s, b) => s + b.unitsPerBox, 0);
@@ -140,10 +142,10 @@ export default async function ShipmentDetail({ params }: { params: { id: string 
             <section key={line.id} className="card overflow-hidden">
               {/* Line header (the plan) */}
               <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 bg-slate-50 p-4">
-                {line.productImage && (
+                {img(line.productId, line.productImage, line.productName) && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={line.productImage}
+                    src={img(line.productId, line.productImage, line.productName)}
                     alt=""
                     className="h-12 w-12 shrink-0 rounded-lg object-cover"
                   />
