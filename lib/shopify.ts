@@ -52,7 +52,8 @@ export type ShopifyVariant = {
   status: string;
 };
 
-// Every product + variant in the store (active first). 69 products ≈ 1 page.
+// Every ACTIVE or DRAFT product + variant in the store — archived products
+// are excluded everywhere (import picker and link dropdowns).
 export async function listStoreVariants(): Promise<ShopifyVariant[]> {
   const out: ShopifyVariant[] = [];
   let cursor: string | null = null;
@@ -73,6 +74,7 @@ export async function listStoreVariants(): Promise<ShopifyVariant[]> {
       { after: cursor }
     );
     for (const p of data.products.nodes) {
+      if (p.status !== "ACTIVE" && p.status !== "DRAFT") continue;
       const image = p.featuredMedia?.preview?.image?.url || "";
       for (const v of p.variants.nodes) {
         out.push({

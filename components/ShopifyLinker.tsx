@@ -54,7 +54,6 @@ export function ShopifyLinker({ products }: { products: TrackerProduct[] }) {
       (variants || []).filter(
         (v) =>
           !linkedIds.has(v.variantId) &&
-          v.status === "ACTIVE" &&
           (query.trim() === "" ||
             variantLabel(v).toLowerCase().includes(query.trim().toLowerCase()))
       ),
@@ -135,13 +134,12 @@ export function ShopifyLinker({ products }: { products: TrackerProduct[] }) {
                 onChange={(e) => link(p.id, e.target.value)}
               >
                 <option value="">— not linked —</option>
-                {variants
-                  .filter((v) => v.status === "ACTIVE" || v.variantId === p.shopifyVariantId)
-                  .map((v) => (
-                    <option key={v.variantId} value={v.variantId}>
-                      {variantLabel(v)}
-                    </option>
-                  ))}
+                {variants.map((v) => (
+                  <option key={v.variantId} value={v.variantId}>
+                    {variantLabel(v)}
+                    {v.status === "DRAFT" ? " [draft]" : ""}
+                  </option>
+                ))}
               </select>
             </div>
           ))}
@@ -194,7 +192,14 @@ export function ShopifyLinker({ products }: { products: TrackerProduct[] }) {
                 <span className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100">📦</span>
               )}
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{variantLabel(v)}</span>
+                <span className="block truncate font-medium">
+                  {variantLabel(v)}
+                  {v.status === "DRAFT" && (
+                    <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-slate-500">
+                      draft
+                    </span>
+                  )}
+                </span>
                 <span className="text-xs text-muted">
                   ${v.price.toFixed(2)} · {v.inventory} in stock
                 </span>
