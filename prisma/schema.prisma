@@ -294,7 +294,28 @@ model Product {
   source    String?  // e.g. "sortly"
   createdAt DateTime @default(now())
 
+  // Shopify link: which store variant this product is sold as. Set by the
+  // Shopify import/link page; feeds the restock planner.
+  shopifyVariantId String?   @unique
+  shopifySku       String?
+  shopifyPrice     Float?
+  shopifyOnHand    Int?      // last synced inventory quantity
+  shopifySyncedAt  DateTime?
+
   @@index([sku])
+  @@schema("shipments")
+}
+
+// Units sold per Shopify variant per day (shop timezone), synced from the
+// Shopify Admin API. Drives sales velocity in the restock planner.
+model ShopifySale {
+  id        String   @id @default(cuid())
+  variantId String
+  date      DateTime @db.Date
+  units     Int
+  createdAt DateTime @default(now())
+
+  @@unique([variantId, date])
   @@schema("shipments")
 }
 

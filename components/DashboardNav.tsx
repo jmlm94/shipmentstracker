@@ -16,6 +16,7 @@ import {
   LogOut,
   Menu,
   X,
+  TrendingUp,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 
@@ -25,6 +26,7 @@ const NAV = [
   { href: "/dashboard/shipments", label: "Shipments", icon: Truck },
   { href: "/dashboard/receive", label: "Receive", icon: ScanLine },
   { href: "/dashboard/products", label: "Products", icon: Tags },
+  { href: "/dashboard/restock", label: "Restock", icon: TrendingUp },
   { href: "/dashboard/assistant", label: "Assistant", icon: MessageCircle },
   { href: "/dashboard/form", label: "Smart Form", icon: FileText },
   { href: "/dashboard/export", label: "Export", icon: Download },

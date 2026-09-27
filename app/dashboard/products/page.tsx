@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { CATALOG } from "@/lib/catalog";
 import { CsvImport } from "./CsvImport";
@@ -32,7 +33,10 @@ export default async function ProductsPage() {
         </p>
       </div>
 
-      <div className="mb-5">
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <Link href="/dashboard/products/shopify" className="btn">
+          🛒 Import &amp; link with Shopify
+        </Link>
         <CsvImport />
       </div>
 

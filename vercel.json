@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/refresh-tracking",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/shopify-sync",
+      "schedule": "30 6 * * *"
     }
   ]
 }
