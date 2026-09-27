@@ -9,17 +9,32 @@ export function shopifyConfigured(): boolean {
   return !!(process.env.SHOPIFY_STORE_DOMAIN && process.env.SHOPIFY_ADMIN_TOKEN);
 }
 
+// Accept the domain however it was pasted: with https://, a path, trailing
+// slash, or stray whitespace.
+function storeDomain(): string {
+  return (process.env.SHOPIFY_STORE_DOMAIN || "")
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/.*$/, "");
+}
+
 async function gql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
-  const domain = process.env.SHOPIFY_STORE_DOMAIN!;
-  const res = await fetch(`https://${domain}/admin/api/${API_VERSION}/graphql.json`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Shopify-Access-Token": process.env.SHOPIFY_ADMIN_TOKEN!,
-    },
-    body: JSON.stringify({ query, variables }),
-    cache: "no-store",
-  });
+  const domain = storeDomain();
+  let res: Response;
+  try {
+    res = await fetch(`https://${domain}/admin/api/${API_VERSION}/graphql.json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": (process.env.SHOPIFY_ADMIN_TOKEN || "").trim(),
+      },
+      body: JSON.stringify({ query, variables }),
+      cache: "no-store",
+    });
+  } catch (e) {
+    const cause = e instanceof Error && e.cause ? ` (${String((e.cause as Error).message || e.cause)})` : "";
+    throw new Error(`Couldn't reach https://${domain}${cause} — check SHOPIFY_STORE_DOMAIN.`);
+  }
   if (!res.ok) throw new Error(`Shopify API ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = await res.json();
   if (data.errors?.length) throw new Error(`Shopify GraphQL: ${JSON.stringify(data.errors).slice(0, 300)}`);
