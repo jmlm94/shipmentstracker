@@ -52,8 +52,9 @@ export type ShopifyVariant = {
   status: string;
 };
 
-// Every ACTIVE or DRAFT product + variant in the store — archived products
-// are excluded everywhere (import picker and link dropdowns).
+// Every product + variant in the store except ARCHIVED ones. UNLISTED counts
+// as sellable (direct-link products like the Rogue Pro Founders Pack still
+// take orders), so it shows alongside ACTIVE and DRAFT.
 export async function listStoreVariants(): Promise<ShopifyVariant[]> {
   const out: ShopifyVariant[] = [];
   let cursor: string | null = null;
@@ -74,7 +75,7 @@ export async function listStoreVariants(): Promise<ShopifyVariant[]> {
       { after: cursor }
     );
     for (const p of data.products.nodes) {
-      if (p.status !== "ACTIVE" && p.status !== "DRAFT") continue;
+      if (p.status === "ARCHIVED") continue;
       const image = p.featuredMedia?.preview?.image?.url || "";
       for (const v of p.variants.nodes) {
         out.push({

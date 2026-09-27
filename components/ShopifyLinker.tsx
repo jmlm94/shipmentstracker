@@ -137,7 +137,7 @@ export function ShopifyLinker({ products }: { products: TrackerProduct[] }) {
                 {variants.map((v) => (
                   <option key={v.variantId} value={v.variantId}>
                     {variantLabel(v)}
-                    {v.status === "DRAFT" ? " [draft]" : ""}
+                    {v.status !== "ACTIVE" ? ` [${v.status.toLowerCase()}]` : ""}
                   </option>
                 ))}
               </select>
@@ -194,9 +194,9 @@ export function ShopifyLinker({ products }: { products: TrackerProduct[] }) {
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">
                   {variantLabel(v)}
-                  {v.status === "DRAFT" && (
+                  {v.status !== "ACTIVE" && (
                     <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-slate-500">
-                      draft
+                      {v.status.toLowerCase()}
                     </span>
                   )}
                 </span>
