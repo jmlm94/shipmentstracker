@@ -5,14 +5,14 @@ import { shopifyConfigured, fetchVariantInventory, fetchSalesByDay } from "./sho
 // sales per variant (ALL variants, so a product linked later already has
 // history). Incremental: continues from the last stored sales day (re-pulling
 // a 2-day overlap to catch late orders); first run backfills 90 days.
-export async function runShopifySync(): Promise<
+export async function runShopifySync(full = false): Promise<
   { linked: number; salesRows: number; since: string } | { error: string }
 > {
   if (!shopifyConfigured()) {
     return { error: "Shopify isn't configured — set SHOPIFY_STORE_DOMAIN and SHOPIFY_ADMIN_TOKEN." };
   }
   try {
-    return await doSync();
+    return await doSync(full);
   } catch (e) {
     // Surface Shopify's own message (bad token, wrong domain, missing scope)
     // instead of an opaque 500 — the Sync button shows this to the user.
@@ -33,7 +33,7 @@ export async function runShopifySync(): Promise<
   }
 }
 
-async function doSync(): Promise<{ linked: number; salesRows: number; since: string }> {
+async function doSync(full: boolean): Promise<{ linked: number; salesRows: number; since: string }> {
 
   const linked = await prisma.product.findMany({
     where: { shopifyVariantId: { not: null } },
@@ -54,11 +54,13 @@ async function doSync(): Promise<{ linked: number; salesRows: number; since: str
     }
   }
 
-  // Sales window: from last stored day − 2, else 90 days back.
+  // Sales window: from last stored day − 2, else 90 days back. `full` forces
+  // the whole 90-day window (used to repair a partial backfill).
   const last = await prisma.shopifySale.aggregate({ _max: { date: true } });
-  const since = last._max.date
-    ? new Date(last._max.date.getTime() - 2 * 86400e3)
-    : new Date(Date.now() - 90 * 86400e3);
+  const since =
+    !full && last._max.date
+      ? new Date(last._max.date.getTime() - 2 * 86400e3)
+      : new Date(Date.now() - 90 * 86400e3);
   const sinceISO = since.toISOString().slice(0, 10);
 
   const sales = await fetchSalesByDay(sinceISO);

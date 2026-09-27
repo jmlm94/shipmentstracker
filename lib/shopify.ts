@@ -119,7 +119,7 @@ export async function fetchVariantInventory(
 // `maxOrders` per call — the daily sync only ever needs a day or two.
 export async function fetchSalesByDay(
   sinceISO: string,
-  maxOrders = 3000
+  maxOrders = 12000
 ): Promise<Map<string, Map<string, number>>> {
   const sales = new Map<string, Map<string, number>>();
   let cursor: string | null = null;

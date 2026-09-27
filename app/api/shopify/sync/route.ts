@@ -3,7 +3,7 @@ import { isAuthed } from "@/lib/auth";
 import { runShopifySync } from "@/lib/shopifySync";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST() {
   if (!isAuthed()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
