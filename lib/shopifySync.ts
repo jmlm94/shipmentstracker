@@ -11,6 +11,29 @@ export async function runShopifySync(): Promise<
   if (!shopifyConfigured()) {
     return { error: "Shopify isn't configured — set SHOPIFY_STORE_DOMAIN and SHOPIFY_ADMIN_TOKEN." };
   }
+  try {
+    return await doSync();
+  } catch (e) {
+    // Surface Shopify's own message (bad token, wrong domain, missing scope)
+    // instead of an opaque 500 — the Sync button shows this to the user.
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes("401")) {
+      return {
+        error:
+          "Shopify rejected the credentials (401). Check that SHOPIFY_ADMIN_TOKEN is the Admin API access token (starts with shpat_) and SHOPIFY_STORE_DOMAIN is your *.myshopify.com domain — then redeploy.",
+      };
+    }
+    if (msg.includes("403")) {
+      return {
+        error:
+          "Shopify refused access (403). The custom app needs the read_products and read_orders scopes — update them and reinstall the app.",
+      };
+    }
+    return { error: `Shopify sync failed: ${msg.slice(0, 300)}` };
+  }
+}
+
+async function doSync(): Promise<{ linked: number; salesRows: number; since: string }> {
 
   const linked = await prisma.product.findMany({
     where: { shopifyVariantId: { not: null } },
