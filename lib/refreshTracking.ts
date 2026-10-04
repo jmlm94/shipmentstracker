@@ -2,7 +2,7 @@ import { prisma } from "./prisma";
 import { getTrackingProvider } from "./tracking";
 import { carrierStatusToBoxStatus } from "./status";
 import { applyCarrierStatusChange } from "./updateStatus";
-import { reconcileDeliveredBoxes } from "./receiving";
+import { reconcileDeliveredBoxes, sweepReceivedOrders } from "./receiving";
 import { sendSlack } from "./slack";
 import { etaFor, daysSince, TERMINAL_STATUSES } from "./eta";
 
@@ -12,6 +12,7 @@ export async function runTrackingRefresh(trigger: "cron" | "manual") {
   const run = await prisma.syncRun.create({ data: { trigger } });
   let checked = 0;
   let changed = 0;
+  let sweptReceived = 0;
   let ok = true;
 
   try {
@@ -45,6 +46,7 @@ export async function runTrackingRefresh(trigger: "cron" | "manual") {
     // every purchase order with credited boxes. Makes "delivered ⇒ received"
     // self-healing on every run.
     const healed = await reconcileDeliveredBoxes();
+    sweptReceived = await sweepReceivedOrders();
     if (healed > 0) console.log(`[refreshTracking] reconciled ${healed} delivered box(es)`);
 
     await checkOverdue();
@@ -58,7 +60,7 @@ export async function runTrackingRefresh(trigger: "cron" | "manual") {
     data: { finishedAt: new Date(), boxesChecked: checked, statusChanges: changed, ok },
   });
 
-  return { checked, changed, ok };
+  return { checked, changed, sweptReceived, ok };
 }
 
 // Find boxes past their ETA that haven't been alerted yet, group by shipment,

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
 import { orderBodySchema, statusFromReceived } from "@/lib/po";
-import { poInTransitByProduct } from "@/lib/receiving";
+import { poInTransitByProduct, completeOrderBoxes } from "@/lib/receiving";
 import { PO_STATUS_META } from "@/lib/poStatus";
 import { logPoEvent } from "@/lib/poLog";
 
@@ -85,9 +85,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid input" }, { status: 422 });
 
-  // "Mark received" sets every line's receivedQty to the ordered quantity so the
-  // received column reflects the status; "unmark" (→ OPEN) resets received to 0.
+  // "Mark received" means EVERYTHING arrived: boxes still on the way are
+  // marked delivered (so nothing stays "on the way" against a received
+  // order), and every line's receivedQty is completed to the ordered
+  // quantity. "Unmark" (→ OPEN) resets received to 0.
+  let completedBoxes = 0;
   if (parsed.data.status === "RECEIVED") {
+    completedBoxes = await completeOrderBoxes(params.id, "PO marked received");
     const items = await prisma.purchaseOrderItem.findMany({ where: { purchaseOrderId: params.id } });
     await prisma.$transaction(
       items.map((it) =>
@@ -115,7 +119,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       "STATUS",
       `Status: ${PO_STATUS_META[before.status].label} → ${PO_STATUS_META[parsed.data.status].label}` +
         (parsed.data.status === "RECEIVED"
-          ? " — all items marked fully received"
+          ? ` — all items marked fully received${completedBoxes > 0 ? `, ${completedBoxes} box${completedBoxes === 1 ? "" : "es"} on the way marked delivered` : ""}`
           : parsed.data.status === "OPEN"
             ? " — received counts reset to 0"
             : ""),

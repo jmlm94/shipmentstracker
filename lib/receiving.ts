@@ -151,6 +151,90 @@ export async function syncPoReceivedFromShipments(
   }
 }
 
+// Mark every still-pending box on a PO's linked shipments as DELIVERED and
+// credit its units (LOST/DAMAGED stay written off). Used by "Mark received" —
+// an order declared fully received cannot have units "on the way" — and by
+// the consistency sweep. Returns how many boxes were completed.
+export async function completeOrderBoxes(poId: string, source: string): Promise<number> {
+  const pending = await prisma.box.findMany({
+    where: {
+      shipment: { purchaseOrderId: poId },
+      status: { notIn: ["DELIVERED", "ADDED_IN_STOCK", "LOST", "DAMAGED"] },
+    },
+  });
+  const now = new Date();
+  for (const b of pending) {
+    await prisma.box.update({
+      where: { id: b.id },
+      data: {
+        status: "DELIVERED",
+        deliveredAt: b.deliveredAt ?? now,
+        ...(b.unitsReceived == null ? { unitsReceived: b.unitsPerBox } : {}),
+      },
+    });
+    await prisma.statusEvent.create({
+      data: {
+        boxId: b.id,
+        fromStatus: b.status,
+        toStatus: "DELIVERED",
+        source: "warehouse",
+        message: source,
+        notified: true,
+      },
+    });
+  }
+  if (pending.length > 0) {
+    await syncPoReceivedFromShipments(poId, "add", source);
+  }
+  return pending.length;
+}
+
+// Consistency sweep, run on every tracking refresh: an order whose status is
+// RECEIVED must have no boxes on the way and no item short of its ordered
+// quantity. Repairs both (the "Mark received while boxes were in transit"
+// case) so the contradiction can't persist anywhere.
+export async function sweepReceivedOrders(): Promise<number> {
+  const received = await prisma.purchaseOrder.findMany({
+    where: { status: "RECEIVED" },
+    select: {
+      id: true,
+      code: true,
+      items: { select: { id: true, quantity: true, receivedQty: true } },
+      shipments: {
+        select: {
+          boxes: {
+            where: { status: { notIn: ["DELIVERED", "ADDED_IN_STOCK", "LOST", "DAMAGED"] } },
+            select: { id: true },
+          },
+        },
+      },
+    },
+  });
+
+  let fixed = 0;
+  for (const po of received) {
+    const pendingBoxes = po.shipments.reduce((s, sh) => s + sh.boxes.length, 0);
+    const shortItems = po.items.filter((it) => it.receivedQty < it.quantity);
+    if (pendingBoxes === 0 && shortItems.length === 0) continue;
+
+    const completed = await completeOrderBoxes(po.id, "received-order sweep");
+    for (const it of shortItems) {
+      await prisma.purchaseOrderItem.update({
+        where: { id: it.id },
+        data: { receivedQty: it.quantity },
+      });
+    }
+    await logPoEvent(
+      po.id,
+      "EDIT",
+      `Consistency sweep: order is marked received — ${completed} box${completed === 1 ? "" : "es"} still on the way marked delivered, received counts completed`,
+      "reconcile"
+    );
+    fixed++;
+  }
+  return fixed;
+}
+
 // Safety net, run on every tracking refresh: (1) any box that reached
 // DELIVERED / ADDED_IN_STOCK without its units credited gets credited now,
 // (2) every purchase order with credited boxes is re-synced. Guarantees
