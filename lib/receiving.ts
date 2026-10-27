@@ -62,6 +62,78 @@ export function planBoxCreditReduction(
   return out;
 }
 
+// After received counts were set by hand (Receive view or Edit), make the
+// box credits agree with them so the next sync can't undo the change:
+//  - a count corrected BELOW what delivered boxes credit takes the surplus
+//    back from the most recently delivered boxes (flagged as discrepancies);
+//  - every item's receivedFromBoxes is reset to its boxes' actual credit, so
+//    the hand-entered remainder is kept as the manual baseline.
+// Returns one human-readable line per correction, for the PO activity log.
+export async function alignBoxCredits(poId: string): Promise<string[]> {
+  const items = await prisma.purchaseOrderItem.findMany({ where: { purchaseOrderId: poId } });
+  const credited = await prisma.box.findMany({
+    where: { shipment: { purchaseOrderId: poId }, unitsReceived: { not: null } },
+    orderBy: [{ deliveredAt: { sort: "desc", nulls: "last" } }, { boxNumber: "desc" }],
+    select: { id: true, productId: true, unitsReceived: true, status: true },
+  });
+
+  const log: string[] = [];
+  const seen = new Set<string>();
+  for (const it of items) {
+    // A product listed twice on one PO: only the first line owns the boxes.
+    if (seen.has(it.productId)) {
+      if (it.receivedFromBoxes !== 0) {
+        await prisma.purchaseOrderItem.update({ where: { id: it.id }, data: { receivedFromBoxes: 0 } });
+      }
+      continue;
+    }
+    seen.add(it.productId);
+
+    const mine = credited
+      .filter((b) => b.productId === it.productId)
+      .map((b) => ({ ...b, unitsReceived: b.unitsReceived ?? 0 }));
+    const boxSum = mine.reduce((s, b) => s + b.unitsReceived, 0);
+    const target = it.receivedQty;
+
+    // Over-delivery (boxes > ordered) with the count at the ordered quantity
+    // is not a correction — the roll-up already caps it.
+    if (target >= Math.min(boxSum, it.quantity)) {
+      if (it.receivedFromBoxes !== boxSum) {
+        await prisma.purchaseOrderItem.update({ where: { id: it.id }, data: { receivedFromBoxes: boxSum } });
+      }
+      continue;
+    }
+
+    const plan = planBoxCreditReduction(mine, boxSum - target);
+    for (const p of plan) {
+      const b = mine.find((x) => x.id === p.id)!;
+      await prisma.box.update({
+        where: { id: p.id },
+        data: { unitsReceived: p.unitsReceived, hasDiscrepancy: true },
+      });
+      await prisma.statusEvent.create({
+        data: {
+          boxId: p.id,
+          fromStatus: b.status,
+          toStatus: b.status,
+          source: "warehouse",
+          message: `Received count corrected on the PO: ${b.unitsReceived} → ${p.unitsReceived} units credited`,
+          notified: true,
+        },
+      });
+    }
+    const removed = plan.reduce((s, p) => s + p.removed, 0);
+    await prisma.purchaseOrderItem.update({
+      where: { id: it.id },
+      data: { receivedFromBoxes: boxSum - removed },
+    });
+    log.push(
+      `${removed} × ${it.productName} un-credited from ${plan.length} delivered box${plan.length === 1 ? "" : "es"} (correction)`
+    );
+  }
+  return log;
+}
+
 // Units per product sitting in undelivered (and not written-off) boxes across
 // a PO's linked shipments. Used to keep the order's status honest: while units
 // are on the way, the order can never auto-complete.

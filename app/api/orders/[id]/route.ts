@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
 import { orderBodySchema, statusFromReceived } from "@/lib/po";
-import { poInTransitByProduct, completeOrderBoxes } from "@/lib/receiving";
+import { poInTransitByProduct, completeOrderBoxes, alignBoxCredits } from "@/lib/receiving";
 import { PO_STATUS_META } from "@/lib/poStatus";
 import { logPoEvent } from "@/lib/poLog";
 
@@ -62,6 +62,12 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       },
     });
   });
+
+  // Items were recreated, so their box-derived share was lost. Re-derive it
+  // from the boxes — and if a count was lowered below what delivered boxes
+  // credit, take the surplus back — so the next sync can't undo this edit.
+  const creditLog = await alignBoxCredits(params.id);
+  for (const line of creditLog) await logPoEvent(params.id, "EDIT", line, "dashboard");
 
   const units = items.reduce((s, it) => s + it.quantity, 0);
   const value = items.reduce((s, it) => s + it.quantity * it.unitCost, 0) +

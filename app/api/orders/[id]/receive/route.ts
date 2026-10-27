@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { isAuthed } from "@/lib/auth";
 import { statusFromReceived } from "@/lib/po";
-import { poInTransitByProduct, planBoxCreditReduction } from "@/lib/receiving";
+import { poInTransitByProduct, alignBoxCredits } from "@/lib/receiving";
 import { PO_STATUS_META } from "@/lib/poStatus";
 import { logPoEvent } from "@/lib/poLog";
 
@@ -39,79 +39,20 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   // A draft becomes active the moment you start receiving against it.
   const base = po.status === "DRAFT" ? "OPEN" : po.status;
 
-  // Corrections below what delivered boxes credit: take the surplus back from
-  // the most recently delivered boxes so the next sync can't re-add it. The
-  // item's box-derived share then equals the boxes' remaining credit.
-  const credited = await prisma.box.findMany({
-    where: { shipment: { purchaseOrderId: po.id }, unitsReceived: { not: null } },
-    orderBy: [{ deliveredAt: { sort: "desc", nulls: "last" } }, { boxNumber: "desc" }],
-    select: { id: true, productId: true, unitsReceived: true, status: true, boxCode: true },
-  });
-  const boxOps: ReturnType<typeof prisma.box.update>[] = [];
-  const eventOps: ReturnType<typeof prisma.statusEvent.create>[] = [];
-  const fromBoxes = new Map<string, number>();
-  const creditLog: string[] = [];
-  for (let i = 0; i < po.items.length; i++) {
-    const it = po.items[i];
-    if (!byId.has(it.id)) continue;
-    const mine = credited
-      .filter((b) => b.productId === it.productId)
-      .map((b) => ({ ...b, unitsReceived: b.unitsReceived ?? 0 }));
-    const boxSum = mine.reduce((s, b) => s + b.unitsReceived, 0);
-    const target = next[i].receivedQty;
-    // Over-delivery (boxes > ordered) with the count left at the ordered
-    // quantity is not a correction — the roll-up already caps it.
-    if (target >= Math.min(boxSum, it.quantity)) {
-      fromBoxes.set(it.id, boxSum);
-      continue;
-    }
-    const plan = planBoxCreditReduction(mine, boxSum - target);
-    for (const p of plan) {
-      const b = mine.find((x) => x.id === p.id)!;
-      boxOps.push(
-        prisma.box.update({
-          where: { id: p.id },
-          data: { unitsReceived: p.unitsReceived, hasDiscrepancy: true },
-        })
-      );
-      eventOps.push(
-        prisma.statusEvent.create({
-          data: {
-            boxId: p.id,
-            fromStatus: b.status,
-            toStatus: b.status,
-            source: "warehouse",
-            message: `Received count corrected on the PO: ${b.unitsReceived} → ${p.unitsReceived} units credited`,
-            notified: true,
-          },
-        })
-      );
-    }
-    const removed = plan.reduce((s, p) => s + p.removed, 0);
-    fromBoxes.set(it.id, boxSum - removed);
-    creditLog.push(
-      `${removed} × ${it.productName} un-credited from ${plan.length} delivered box${plan.length === 1 ? "" : "es"} (correction)`
-    );
-  }
-
   const nextStatus = statusFromReceived(next, base);
   await prisma.$transaction([
-    ...boxOps,
-    ...eventOps,
     ...next.map((n) =>
-      prisma.purchaseOrderItem.update({
-        where: { id: n.id },
-        data: {
-          receivedQty: n.receivedQty,
-          ...(fromBoxes.has(n.id) ? { receivedFromBoxes: fromBoxes.get(n.id)! } : {}),
-        },
-      })
+      prisma.purchaseOrderItem.update({ where: { id: n.id }, data: { receivedQty: n.receivedQty } })
     ),
     prisma.purchaseOrder.update({
       where: { id: params.id },
       data: { status: nextStatus },
     }),
   ]);
+
+  // Make the box credits agree with the counts just entered, so a correction
+  // DOWN (e.g. units marked delivered that never shipped) sticks.
+  const creditLog = await alignBoxCredits(params.id);
 
   // Activity log: one line per item whose count moved + the status change.
   for (let i = 0; i < next.length; i++) {

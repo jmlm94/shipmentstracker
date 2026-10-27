@@ -86,6 +86,11 @@ export function PoActions({
       <Link href={`/dashboard/orders/${id}/edit`} className="btn-secondary">
         ✏️ Edit
       </Link>
+      {status !== "CANCELLED" && (
+        <Link href={`/dashboard/receive/${id}`} className="btn-secondary">
+          📦 Adjust received
+        </Link>
+      )}
       {hasShipments && (
         <button onClick={updateTracking} disabled={tracking || busy} className="btn-secondary">
           {tracking ? "📡 Checking carriers…" : "📡 Update tracking"}
