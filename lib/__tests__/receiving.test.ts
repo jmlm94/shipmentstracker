@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextReceivedTotals, type ReceivedItemState } from "../receiving";
+import { nextReceivedTotals, planBoxCreditReduction, type ReceivedItemState } from "../receiving";
 
 function item(over: Partial<ReceivedItemState>): ReceivedItemState {
   return {
@@ -78,5 +78,41 @@ describe("nextReceivedTotals", () => {
     const items = [item({ quantity: 5000, receivedQty: 2000 })];
     const next = nextReceivedTotals(items, new Map(), "add");
     expect(next[0].receivedQty).toBe(2000);
+  });
+});
+
+describe("planBoxCreditReduction (correcting a received count down)", () => {
+  it("takes credits back from the most recent boxes first", () => {
+    const boxes = [
+      { id: "b3", unitsReceived: 2000 },
+      { id: "b2", unitsReceived: 2000 },
+      { id: "b1", unitsReceived: 6000 },
+    ];
+    expect(planBoxCreditReduction(boxes, 4000)).toEqual([
+      { id: "b3", unitsReceived: 0, removed: 2000 },
+      { id: "b2", unitsReceived: 0, removed: 2000 },
+    ]);
+  });
+
+  it("partially reduces a box and skips empty ones", () => {
+    const boxes = [
+      { id: "a", unitsReceived: 0 },
+      { id: "b", unitsReceived: 500 },
+      { id: "c", unitsReceived: 500 },
+    ];
+    expect(planBoxCreditReduction(boxes, 700)).toEqual([
+      { id: "b", unitsReceived: 0, removed: 500 },
+      { id: "c", unitsReceived: 300, removed: 200 },
+    ]);
+  });
+
+  it("corrected total survives the next sync (Kospet glass: 10,000 → 6,000)", () => {
+    // After correction: boxes credit 6,000, receivedQty 6,000 → sync keeps 6,000.
+    const [n] = nextReceivedTotals(
+      [item({ quantity: 10000, receivedQty: 6000, receivedFromBoxes: 6000 })],
+      new Map([["p1", 6000]]),
+      "add"
+    );
+    expect(n.receivedQty).toBe(6000);
   });
 });

@@ -41,6 +41,27 @@ export function nextReceivedTotals(
   });
 }
 
+// When a received count is corrected DOWN below what delivered boxes credit,
+// the box credits must come down too — otherwise the next sync re-adds them.
+// Takes the product's credited boxes (most recent first) and returns the new
+// unitsReceived for each box that has to give units back, removing `excess`
+// units in total.
+export function planBoxCreditReduction(
+  boxes: { id: string; unitsReceived: number }[],
+  excess: number
+): { id: string; unitsReceived: number; removed: number }[] {
+  const out: { id: string; unitsReceived: number; removed: number }[] = [];
+  let left = Math.max(0, excess);
+  for (const b of boxes) {
+    if (left <= 0) break;
+    if (b.unitsReceived <= 0) continue;
+    const take = Math.min(b.unitsReceived, left);
+    out.push({ id: b.id, unitsReceived: b.unitsReceived - take, removed: take });
+    left -= take;
+  }
+  return out;
+}
+
 // Units per product sitting in undelivered (and not written-off) boxes across
 // a PO's linked shipments. Used to keep the order's status honest: while units
 // are on the way, the order can never auto-complete.
